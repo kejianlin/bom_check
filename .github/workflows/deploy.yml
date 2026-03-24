@@ -21,7 +21,16 @@ jobs:
     - name: Add server to known hosts
       run: |
         mkdir -p ~/.ssh
-        ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+        echo "SERVER_HOST: ${{ secrets.SERVER_HOST }}"
+        echo "SERVER_USER: ${{ secrets.SERVER_USER }}"
+        if [ -z "${{ secrets.SERVER_HOST }}" ]; then
+          echo "Error: SERVER_HOST secret is not set"
+          exit 1
+        fi
+        ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts || {
+          echo "Failed to scan host ${{ secrets.SERVER_HOST }}"
+          exit 1
+        }
 
     - name: Deploy to server
       run: |
