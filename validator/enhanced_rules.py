@@ -32,6 +32,12 @@ class ValidationRule:
         """执行校验，返回错误信息或None"""
         raise NotImplementedError("子类必须实现validate方法")
     
+    def _get_field_label(self, field_name: str = None) -> str:
+        """获取字段的中文标签，默认使用self.field"""
+        if field_name is None:
+            field_name = self.field
+        return BOMItem.get_field_label(field_name)
+    
     def create_error(self, item: BOMItem, message: str = None, 
                     expected_value: Any = None, actual_value: Any = None) -> ValidationError:
         """创建错误对象"""
@@ -57,9 +63,10 @@ class RequiredCheckRule(ValidationRule):
         value = getattr(item, self.field, None)
         
         if value is None or (isinstance(value, str) and not value.strip()):
+            field_label = self._get_field_label()
             return self.create_error(
                 item,
-                f"{self.field}不能为空",
+                f"{field_label}({self.field})不能为空",
                 expected_value="非空值",
                 actual_value=None
             )
@@ -75,6 +82,7 @@ class FormatCheckRule(ValidationRule):
             return None
         
         value = getattr(item, self.field, None)
+        field_label = self._get_field_label()
         
         # 允许为空的情况
         if self.config.get('allow_empty', False) and not value:
@@ -104,7 +112,7 @@ class FormatCheckRule(ValidationRule):
                 if min_val is not None and num_value < min_val:
                     return self.create_error(
                         item,
-                        f"{self.field}必须大于等于{min_val}",
+                        f"{field_label}({self.field})必须大于等于{min_val}",
                         expected_value=f">= {min_val}",
                         actual_value=value
                     )
@@ -112,7 +120,7 @@ class FormatCheckRule(ValidationRule):
                 if max_val is not None and num_value > max_val:
                     return self.create_error(
                         item,
-                        f"{self.field}必须小于等于{max_val}",
+                        f"{field_label}({self.field})必须小于等于{max_val}",
                         expected_value=f"<= {max_val}",
                         actual_value=value
                     )
@@ -126,7 +134,7 @@ class FormatCheckRule(ValidationRule):
                         if actual_decimals > decimal_places:
                             return self.create_error(
                                 item,
-                                f"{self.field}最多{decimal_places}位小数",
+                                f"{field_label}({self.field})最多{decimal_places}位小数",
                                 expected_value=f"<= {decimal_places}位小数",
                                 actual_value=f"{actual_decimals}位小数"
                             )
@@ -134,7 +142,7 @@ class FormatCheckRule(ValidationRule):
             except (ValueError, TypeError):
                 return self.create_error(
                     item,
-                    f"{self.field}必须是有效的数字",
+                    f"{field_label}({self.field})必须是有效的数字",
                     expected_value="数字",
                     actual_value=value
                 )
@@ -153,6 +161,7 @@ class ExistenceCheckRule(ValidationRule):
         if not value:
             return None
         
+        field_label = self._get_field_label()
         check_source = self.config.get('check_source', 'plm_materials')
         
         if check_source == 'plm_materials':
@@ -160,7 +169,7 @@ class ExistenceCheckRule(ValidationRule):
             if value not in materials:
                 return self.create_error(
                     item,
-                    f"{self.field}={value}在PLM系统中不存在",
+                    f"{field_label}({self.field})={value}在PLM系统中不存在",
                     expected_value="存在于PLM系统",
                     actual_value=value
                 )
@@ -170,7 +179,7 @@ class ExistenceCheckRule(ValidationRule):
             if value not in suppliers:
                 return self.create_error(
                     item,
-                    f"{self.field}={value}不在认证供应商列表中",
+                    f"{field_label}({self.field})={value}不在认证供应商列表中",
                     expected_value="认证供应商",
                     actual_value=value
                 )
@@ -184,7 +193,7 @@ class ExistenceCheckRule(ValidationRule):
                 if not db_validator.check_item_code_exists(value):
                     return self.create_error(
                         item,
-                        f"{self.field}={value}在数据库cpcitem表中不存在",
+                        f"{field_label}({self.field})={value}在数据库cpcitem表中不存在",
                         expected_value="存在于cpcitem.ITEMCODE",
                         actual_value=value
                     )
@@ -256,6 +265,8 @@ class ConsistencyCheckRule(ValidationRule):
         if not reference_value:
             return None
         
+        field_label = self._get_field_label()
+        
         # 从PLM系统获取数据
         check_source = self.config.get('check_source', 'plm_materials')
         materials = plm_data.get('materials', {})
@@ -282,7 +293,7 @@ class ConsistencyCheckRule(ValidationRule):
             if actual_str != expected_str:
                 return self.create_error(
                     item,
-                    f"{self.field}与PLM系统不一致",
+                    f"{field_label}({self.field})与PLM系统不一致",
                     expected_value=expected_str,
                     actual_value=actual_str
                 )
@@ -292,7 +303,7 @@ class ConsistencyCheckRule(ValidationRule):
             if similarity < tolerance:
                 return self.create_error(
                     item,
-                    f"{self.field}与PLM系统不一致（相似度: {similarity:.1%}）",
+                    f"{field_label}({self.field})与PLM系统不一致（相似度: {similarity:.1%}）",
                     expected_value=expected_str,
                     actual_value=actual_str
                 )
@@ -317,6 +328,7 @@ class DbUnitConsistencyCheckRule(ValidationRule):
         # 获取要检查的字段（通常是单位unit）
         check_field = self.config.get('check_field', 'unit')
         actual_value = getattr(item, check_field, None)
+        check_field_label = self._get_field_label(check_field)
         
         if not actual_value:
             return None
@@ -333,7 +345,7 @@ class DbUnitConsistencyCheckRule(ValidationRule):
                 # 物料不存在，返回错误
                 return self.create_error(
                     item,
-                    f"子编码{reference_value}在数据库中不存在，无法校验单位",
+                    f"子编码{reference_value}在数据库中不存在，无法校验{check_field_label}",
                     expected_value="存在于数据库",
                     actual_value=reference_value
                 )
@@ -345,8 +357,8 @@ class DbUnitConsistencyCheckRule(ValidationRule):
                 # 数据库中没有单位信息
                 return self.create_error(
                     item,
-                    f"子编码{reference_value}在数据库中的单位信息为空",
-                    expected_value="非空单位",
+                    f"子编码{reference_value}在数据库中的{check_field_label}({check_field})信息为空",
+                    expected_value="非空值",
                     actual_value=db_unit
                 )
             
@@ -361,9 +373,9 @@ class DbUnitConsistencyCheckRule(ValidationRule):
                 
                 return self.create_error(
                     item,
-                    f"子编码{reference_value}({item_name})的单位不一致",
-                    expected_value=f"数据库单位: {db_str}",
-                    actual_value=f"上传文件单位: {actual_str}"
+                    f"子编码{reference_value}({item_name})的{check_field_label}({check_field})不一致",
+                    expected_value=f"数据库{check_field_label}: {db_str}",
+                    actual_value=f"上传文件{check_field_label}: {actual_str}"
                 )
             
             return None
@@ -500,7 +512,11 @@ class DuplicateCheckRule(ValidationRule):
             return None
         
         if values in self.seen_combinations:
-            fields_str = ', '.join(f"{field}={val}" for field, val in zip(check_fields, values))
+            # 生成带有字段标签的错误信息
+            fields_str = ', '.join(
+                f"{self._get_field_label(field)}({field})={val}" 
+                for field, val in zip(check_fields, values)
+            )
             return self.create_error(
                 item,
                 f"重复的组合: {fields_str}",
@@ -593,13 +609,14 @@ class StatusCheckRule(ValidationRule):
         if not material:
             return None
         
+        field_label = self._get_field_label()
         allowed_status = self.config.get('allowed_status', [])
         current_status = material.get('status')
         
         if current_status and current_status not in allowed_status:
             return self.create_error(
                 item,
-                f"{self.field}={value}状态为{current_status}，不允许使用",
+                f"{field_label}({self.field})={value}状态为{current_status}，不允许使用",
                 expected_value=f"允许状态: {', '.join(allowed_status)}",
                 actual_value=current_status
             )
@@ -640,9 +657,10 @@ class UniqueCheckRule(ValidationRule):
         
         # 检查是否重复
         if check_value in self.parent_values[parent_value]:
+            check_field_label = self._get_field_label(check_field)
             return self.create_error(
                 item,
-                f"在父编码{parent_value}下，{check_field}={check_value}重复",
+                f"在父编码{parent_value}下，{check_field_label}({check_field})={check_value}重复",
                 expected_value="唯一值",
                 actual_value=check_value
             )
@@ -663,6 +681,7 @@ class NoSpaceCheckRule(ValidationRule):
             return None
         
         value = getattr(item, self.field, None)
+        field_label = self._get_field_label()
         
         # 允许为空的情况
         if self.config.get('allow_empty', False) and not value:
@@ -676,7 +695,7 @@ class NoSpaceCheckRule(ValidationRule):
         if ' ' in str_value:
             return self.create_error(
                 item,
-                f"{self.field}不能包含空格",
+                f"{field_label}({self.field})不能包含空格",
                 expected_value="无空格",
                 actual_value=str_value
             )
@@ -715,18 +734,20 @@ class PositionQtyMatchRule(ValidationRule):
             if self.config.get('allow_empty_position', False):
                 return None
             else:
+                position_label = self._get_field_label('position_number')
                 return self.create_error(
                     item,
-                    f"父编码{parent_code}以{','.join(check_prefixes)}开头，位置号不能为空",
+                    f"父编码{parent_code}以{','.join(check_prefixes)}开头，{position_label}(position_number)不能为空",
                     expected_value="非空位置号（逗号分隔）",
                     actual_value=None
                 )
         
         # 如果用量为空
         if quantity is None:
+            quantity_label = self._get_field_label('quantity')
             return self.create_error(
                 item,
-                f"父编码{parent_code}以{','.join(check_prefixes)}开头，用量不能为空",
+                f"父编码{parent_code}以{','.join(check_prefixes)}开头，{quantity_label}(quantity)不能为空",
                 expected_value="正整数",
                 actual_value=None
             )
@@ -744,20 +765,24 @@ class PositionQtyMatchRule(ValidationRule):
             quantity_value = float(quantity)
             quantity_int = int(quantity_value)
         except (ValueError, TypeError):
+            quantity_label = self._get_field_label('quantity')
             return self.create_error(
                 item,
-                f"用量必须是有效的数字",
+                f"{quantity_label}(quantity)必须是有效的数字",
                 expected_value="数字",
                 actual_value=quantity
             )
         
         # 检查用量是否等于位置号数量
+        position_label = self._get_field_label('position_number')
+        quantity_label = self._get_field_label('quantity')
+        
         if quantity_int != position_count:
             return self.create_error(
                 item,
-                f"位置号数量({position_count})与用量({quantity_int})不匹配",
-                expected_value=f"用量={position_count}（位置号数量）",
-                actual_value=f"用量={quantity_int}，位置号={position_str}"
+                f"{position_label}(position_number)数量({position_count})与{quantity_label}(quantity)({quantity_int})不匹配",
+                expected_value=f"{quantity_label}数={position_count}（{position_label}数量）",
+                actual_value=f"{quantity_label}={quantity_int}，{position_label}={position_str}"
             )
         
         # 额外检查：验证位置号格式（可选）
@@ -765,9 +790,10 @@ class PositionQtyMatchRule(ValidationRule):
         if position_pattern:
             for idx, pos in enumerate(positions, 1):
                 if not re.match(position_pattern, pos):
+                    position_label = self._get_field_label('position_number')
                     return self.create_error(
                         item,
-                        f"第{idx}个位置号'{pos}'格式不符合要求",
+                        f"第{idx}个{position_label}(position_number)'{pos}'格式不符合要求",
                         expected_value=f"匹配模式: {position_pattern}",
                         actual_value=pos
                     )

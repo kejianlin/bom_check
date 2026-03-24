@@ -23,10 +23,33 @@ class BOMItem:
     substitute: Optional[str] = None
     raw_data: Dict[str, Any] = field(default_factory=dict)
     
+    # 字段标签映射 - 用于错误消息显示
+    FIELD_LABELS = {
+        'parent_code': '父编码',
+        'child_code': '子编码',
+        'material_name': '物料名称',
+        'bomviewaltsuid': 'bomviewaltsuid',
+        'quantity': '用量',
+        'position_number': '位置号',
+        'order_type': '单别',
+        'work_order_category': '工单类别',
+        'unit': '单位',
+        'specification': '规格型号',
+        'supplier': '供应商',
+        'remark': '备注',
+        'version': '版本',
+        'substitute': '替代件'
+    }
+    
     @property
     def material_code(self) -> str:
         """兼容旧代码，返回子编码"""
         return self.child_code
+    
+    @staticmethod
+    def get_field_label(field_name: str) -> str:
+        """获取字段的中文标签"""
+        return BOMItem.FIELD_LABELS.get(field_name, field_name)
 
 
 @dataclass
