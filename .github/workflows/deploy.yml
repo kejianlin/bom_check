@@ -27,14 +27,32 @@ jobs:
           echo "Error: SERVER_HOST secret is not set"
           exit 1
         fi
-        ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts || {
-          echo "Failed to scan host ${{ secrets.SERVER_HOST }}"
+        # 提取主机和端口
+        if [[ "${{ secrets.SERVER_HOST }}" == *":"* ]]; then
+          HOST=$(echo "${{ secrets.SERVER_HOST }}" | cut -d: -f1)
+          PORT=$(echo "${{ secrets.SERVER_HOST }}" | cut -d: -f2)
+        else
+          HOST="${{ secrets.SERVER_HOST }}"
+          PORT="22"
+        fi
+        echo "Scanning host: $HOST on port: $PORT"
+        ssh-keyscan -p $PORT -H $HOST >> ~/.ssh/known_hosts || {
+          echo "Failed to scan host $HOST on port $PORT"
           exit 1
         }
 
     - name: Deploy to server
       run: |
-        ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+        # 提取主机和端口
+        if [[ "${{ secrets.SERVER_HOST }}" == *":"* ]]; then
+          HOST=$(echo "${{ secrets.SERVER_HOST }}" | cut -d: -f1)
+          PORT=$(echo "${{ secrets.SERVER_HOST }}" | cut -d: -f2)
+          SSH_CMD="ssh -p $PORT ${{ secrets.SERVER_USER }}@$HOST"
+        else
+          SSH_CMD="ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}"
+        fi
+        echo "Using SSH command: $SSH_CMD"
+        $SSH_CMD << 'EOF'
           cd /opt/bom_check
           git pull origin master
           sudo bash deploy/scripts/deploy.sh
