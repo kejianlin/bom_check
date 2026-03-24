@@ -1,0 +1,12 @@
+# PLM数据同步定时任务
+# 每天凌晨2点执行增量同步
+0 2 * * * bomuser cd /opt/bom_check && /opt/bom_check/venv/bin/python /opt/bom_check/sync/plm_sync.py --mode incremental >> /opt/bom_check/logs/sync_cron.log 2>&1
+
+# 每周日凌晨3点执行全量同步
+0 3 * * 0 bomuser cd /opt/bom_check && /opt/bom_check/venv/bin/python /opt/bom_check/sync/plm_sync.py --mode full >> /opt/bom_check/logs/sync_cron.log 2>&1
+
+# 每天凌晨1点清理30天前的旧日志
+0 1 * * * bomuser find /opt/bom_check/logs -name "*.log" -mtime +30 -delete
+
+# 每月1号凌晨4点执行数据库备份
+0 4 1 * * bomuser /opt/bom_check/deploy/scripts/backup_database.sh >> /opt/bom_check/logs/backup.log 2>&1

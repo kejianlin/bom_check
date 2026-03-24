@@ -1,0 +1,33 @@
+# 自动规范化行尾符
+* text=auto
+
+# Shell脚本使用LF
+*.sh text eol=lf
+
+# Python文件使用LF
+*.py text eol=lf
+
+# 配置文件使用LF
+*.yaml text eol=lf
+*.yml text eol=lf
+*.conf text eol=lf
+*.ini text eol=lf
+
+# 文档使用LF
+*.md text eol=lf
+*.txt text eol=lf
+
+# Windows批处理使用CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 二进制文件
+*.xlsx binary
+*.xls binary
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.zip binary
+*.tar.gz binary

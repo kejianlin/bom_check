@@ -1,0 +1,25 @@
+[Unit]
+Description=PLM Data Sync Service (One-shot)
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=oneshot
+User=bomuser
+Group=bomuser
+WorkingDirectory=/opt/bom_check
+Environment="PATH=/opt/bom_check/venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONUNBUFFERED=1"
+EnvironmentFile=/opt/bom_check/.env
+
+ExecStart=/opt/bom_check/venv/bin/python /opt/bom_check/sync/plm_sync.py --mode incremental
+
+# 日志配置
+StandardOutput=append:/opt/bom_check/logs/sync_service.log
+StandardError=append:/opt/bom_check/logs/sync_service_error.log
+
+# 超时配置（2小时）
+TimeoutStartSec=7200
+
+[Install]
+WantedBy=multi-user.target

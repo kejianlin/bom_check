@@ -1,0 +1,33 @@
+# PLM生产数据库配置（只读访问）
+plm_production:
+  type: ${PLM_DB_TYPE}
+  host: ${PLM_DB_HOST}
+  port: ${PLM_DB_PORT}
+  database: ${PLM_DB_NAME}
+  username: ${PLM_DB_USER}
+  password: ${PLM_DB_PASSWORD}
+  readonly: true
+  pool_size: 5
+  max_overflow: 10
+  
+  # 需要同步的表（Oracle CPC PLM系统实际表名）
+  sync_tables:
+    - CPCBOM            # BOM主表 (25K+ 行)
+    - CPCBOMD           # BOM明细表 (295K+ 行)
+    - CPCITEM
+    # - CPCBOMH           # BOM主表历史 (69K+ 行) - 可选
+    # - CPCBOMDH          # BOM明细历史 (3.8M+ 行) - 数据量大，按需同步
+    # - CPCITEMINTFLINE   # 物料接口表 (7.9M+ 行) - 数据量大，按需同步
+    # - CPC_VENDOR        # 供应商表 (4 行)
+
+# PLM只读同步库配置
+plm_sync:
+  type: ${SYNC_DB_TYPE}
+  host: ${SYNC_DB_HOST}
+  port: ${SYNC_DB_PORT}
+  database: ${SYNC_DB_NAME}
+  username: ${SYNC_DB_USER}
+  password: ${SYNC_DB_PASSWORD}
+  readonly: false
+  pool_size: 10
+  max_overflow: 20

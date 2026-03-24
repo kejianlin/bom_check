@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  # MySQL数据库（PLM同步库）
+  mysql:
+    image: mysql:8.0
+    container_name: plm_sync_db
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: plm_sync_db
+      MYSQL_USER: sync_user
+      MYSQL_PASSWORD: sync_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./examples/test_data.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - bom_network
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+  
+  # BOM校验API服务
+  bom_api:
+    build: .
+    container_name: bom_validator_api
+    environment:
+      - PLM_DB_TYPE=mysql
+      - PLM_DB_HOST=host.docker.internal
+      - PLM_DB_PORT=3306
+      - PLM_DB_NAME=plm_db
+      - PLM_DB_USER=readonly_user
+      - PLM_DB_PASSWORD=readonly_password
+      - SYNC_DB_TYPE=mysql
+      - SYNC_DB_HOST=mysql
+      - SYNC_DB_PORT=3306
+      - SYNC_DB_NAME=plm_sync_db
+      - SYNC_DB_USER=sync_user
+      - SYNC_DB_PASSWORD=sync_password
+      - API_HOST=0.0.0.0
+      - API_PORT=5000
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./config:/app/config
+      - ./logs:/app/logs
+      - ./reports:/app/reports
+    depends_on:
+      - mysql
+    networks:
+      - bom_network
+  
+  # Redis缓存（可选）
+  redis:
+    image: redis:7-alpine
+    container_name: bom_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - bom_network
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+
+volumes:
+  mysql_data:
+  redis_data:
+
+networks:
+  bom_network:
+    driver: bridge

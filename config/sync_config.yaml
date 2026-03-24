@@ -1,0 +1,92 @@
+# 数据同步配置
+
+# 同步模式
+sync_mode:
+  default: incremental  # full | incremental
+  
+# 同步调度
+schedule:
+  enabled: true
+  # cron表达式：每天凌晨2点执行
+  cron: "0 2 * * *"
+  timezone: "Asia/Shanghai"
+
+# 同步策略
+sync_strategy:
+  batch_size: 1000           # 每批次同步的记录数
+  max_workers: 4             # 并发工作线程数
+  retry_times: 3             # 失败重试次数
+  retry_delay: 60            # 重试延迟（秒）
+  timeout: 3600              # 超时时间（秒）
+  
+# 增量同步配置
+incremental_sync:
+  # 基于时间戳的增量同步
+  timestamp_field: update_time
+  # 初始同步时间点（留空则同步所有数据）
+  initial_timestamp: null
+  
+# 数据清理策略
+cleanup:
+  enabled: true
+  # 保留最近N天的历史数据
+  retention_days: 90
+  # 定期清理孤立数据
+  cleanup_orphaned: true
+
+# 同步表配置（Oracle PLM实际表名）
+tables:
+  CPCBOM:
+    enabled: true
+    primary_key: bomid
+    incremental_field: updatetime
+    indexes:
+      - bomid
+      - bomcode
+    
+  CPCBOMD:
+    enabled: true
+    primary_key: bomdid
+    foreign_keys:
+      - field: bomid
+        references: CPCBOM.bomid
+    incremental_field: updatetime
+    indexes:
+      - bomid
+      - parentitem
+      - childitem
+    
+  CPCITEM:
+    enabled: true
+    primary_key: itemcode
+    incremental_field: updatetime
+    indexes:
+      - itemcode
+      - itemtype
+
+# 数据转换规则
+transformations:
+  # 字段映射（如果生产库和同步库字段名不同）
+  field_mappings:
+    materials:
+      mat_code: material_code
+      mat_desc: material_name
+      
+  # 数据过滤（只同步特定条件的数据）
+  filters:
+    materials:
+      status: ["active", "approved"]
+
+# 通知配置
+notifications:
+  enabled: true
+  on_success: false
+  on_failure: true
+  on_warning: true
+  email:
+    recipients:
+      - admin@company.com
+  # 微信企业号推送（可选）
+  wechat:
+    enabled: false
+    webhook_url: ""

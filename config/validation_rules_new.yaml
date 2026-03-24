@@ -1,0 +1,593 @@
+# BOM校验规则配置（新版 - 研发上传格式）
+# 适用于包含父编码、子编码、bomviewaltsuid等字段的BOM数据
+
+# 默认验证模式
+default_mode: standard
+
+# Excel文件必须包含的列
+required_columns:
+  - parent_code        # 父编码（必填）
+  - bomviewaltsuid     # BOM视图替代UID（必填）
+  - child_code         # 子编码ITRMCODE（必填）
+  - quantity           # 用量（必填）
+  - order_type         # 单别（必填）
+  - work_order_category # 工单类别（必填）
+  - unit               # 单位（必填）
+
+# 可选列
+optional_columns:
+  - position_number    # 位置号
+  - material_name      # 物料名称
+  - specification      # 规格型号
+  - supplier           # 供应商
+  - remark            # 备注
+  - version           # 版本
+
+# 校验规则
+validation_rules:
+  # ==================== 必填字段校验 ====================
+  
+  - id: VR001
+    name: parent_code_required
+    description: 父编码不能为空
+    type: required_check
+    enabled: true
+    severity: error
+    field: parent_code
+    
+  - id: VR002
+    name: child_code_required
+    description: 子编码不能为空
+    type: required_check
+    enabled: true
+    severity: error
+    field: child_code
+    
+  - id: VR003
+    name: quantity_required
+    description: 用量不能为空
+    type: required_check
+    enabled: true
+    severity: error
+    field: quantity
+    
+  - id: VR004
+    name: unit_required
+    description: 单位不能为空
+    type: required_check
+    enabled: true
+    severity: error
+    field: unit
+    
+  - id: VR005
+    name: bomviewaltsuid_required
+    description: bomviewaltsuid不能为空
+    type: required_check
+    enabled: true
+    severity: error
+    field: bomviewaltsuid
+    
+  - id: VR006
+    name: order_type_required
+    description: 单别不能为空
+    type: required_check
+    enabled: true
+    severity: error
+    field: order_type
+    
+  - id: VR007
+    name: work_order_category_required
+    description: 工单类别不能为空
+    type: required_check
+    enabled: true
+    severity: error
+    field: work_order_category
+  
+  # ==================== 格式校验 ====================
+  
+  - id: VR010
+    name: parent_code_format
+    description: 父编码格式校验（3位字母-6位数字-2位数字）
+    type: format_check
+    enabled: true
+    severity: error
+    field: parent_code
+    pattern: "^[A-Z]{3}-\\d{6}-\\d{2}$"
+    error_message: "父编码格式必须为：3位大写字母-6位数字-2位数字（例如：WIR-000035-00）"
+    
+  - id: VR011
+    name: child_code_format
+    description: 子编码格式校验（3位字母-6位数字-2位数字）
+    type: format_check
+    enabled: true
+    severity: error
+    field: child_code
+    pattern: "^[A-Z]{3}-\\d{6}-\\d{2}$"
+    error_message: "子编码格式必须为：3位大写字母-6位数字-2位数字（例如：WIR-000035-00）"
+    
+  - id: VR012
+    name: quantity_format
+    description: 用量必须为正数
+    type: format_check
+    enabled: true
+    severity: error
+    field: quantity
+    min_value: 0.0001
+    max_value: 999999
+    decimal_places: 4  # 最多4位小数
+    error_message: "用量必须是0.0001-999999之间的正数，最多4位小数"
+    
+  - id: VR013
+    name: bomviewaltsuid_format
+    description: bomviewaltsuid必须为0
+    type: format_check
+    enabled: true
+    severity: error
+    field: bomviewaltsuid
+    pattern: "^0$"
+    allow_empty: false
+    error_message: "bomviewaltsuid必须为0"
+    
+  - id: VR014
+    name: position_number_format
+    description: 位置号格式校验
+    type: format_check
+    enabled: false
+    severity: warning
+    field: position_number
+    pattern: "^[A-Z0-9]{1,10}$"  # 1-10位字母数字
+    allow_empty: true
+    error_message: "位置号必须是1-10位字母或数字"
+  
+  # ==================== 存在性校验（数据库） ====================
+  
+  - id: VR020
+    name: parent_code_exists
+    description: 父编码必须存在于数据库cpcitem表
+    type: existence_check
+    enabled: true
+    severity: error
+    field: parent_code
+    check_source: db_cpcitem
+    error_message: "父编码在数据库cpcitem表的ITEMCODE字段中不存在"
+    
+  - id: VR021
+    name: child_code_exists
+    description: 子编码必须存在于数据库cpcitem表，且不能为禁用或停产物料
+    type: existence_check
+    enabled: true
+    severity: error
+    field: child_code
+    check_source: db_cpcitem
+    check_disabled: true  # 检查ITEMNAME是否包含"禁用"、"停产"
+    error_message: "子编码在数据库cpcitem表的ITEMCODE字段中不存在，或子编码禁用或停产不可用"
+  
+  # ==================== 白名单校验 ====================
+  
+  - id: VR030
+    name: unit_whitelist
+    description: 单位必须在允许的单位列表中
+    type: whitelist_check
+    enabled: true
+    severity: error
+    field: unit
+    check_source: plm_units
+    error_message: "单位不在允许的单位列表中"
+    
+  - id: VR031
+    name: order_type_whitelist
+    description: 单别必须是BOM清单|BM11、配电BOM|PBOM、新能源BOM|XBOM、易立高BOM|YBOM之一
+    type: whitelist_check
+    enabled: true
+    severity: error
+    field: order_type
+    allow_empty: false
+    whitelist:
+      - "BOM清单|BM11"     # BOM清单
+      - "配电BOM|PBOM"     # 配电BOM
+      - "新能源BOM|XBOM"   # 新能源BOM
+      - "易立高BOM|YBOM"   # 易立高BOM
+    error_message: "单别必须是：BOM清单|BM11、配电BOM|PBOM、新能源BOM|XBOM、易立高BOM|YBOM之一"
+    
+  - id: VR032
+    name: work_order_category_whitelist
+    description: 工单类别必须是5101、5102、5103之一
+    type: whitelist_check
+    enabled: true
+    severity: error
+    field: work_order_category
+    allow_empty: false
+    whitelist:
+      - "5101"  # 厂内工单
+      - "5102"  # 试产工单
+      - "5103"  # 委外工单
+    error_message: "工单类别必须是：5101（厂内工单）、5102（试产工单）、5103（委外工单）之一"
+  
+  # ==================== 一致性校验 ====================
+  
+  - id: VR040
+    name: material_name_consistency
+    description: 物料名称必须与PLM系统一致
+    type: consistency_check
+    enabled: true
+    severity: warning
+    field: material_name
+    reference_field: child_code
+    check_source: plm_materials
+    tolerance: 0.90  # 相似度阈值90%
+    error_message: "物料名称与PLM系统不一致"
+    
+  - id: VR041
+    name: unit_consistency
+    description: 单位必须与PLM系统中物料的基本单位一致
+    type: consistency_check
+    enabled: true
+    severity: error
+    field: unit
+    reference_field: child_code
+    check_source: plm_materials
+    tolerance: 1.0  # 必须完全一致
+    error_message: "单位与PLM系统中的基本单位不一致"
+  
+  - id: VR042
+    name: unit_consistency_db
+    description: 上传文件中的子编码单位必须与数据库cpcitem表中的单位一致
+    type: db_unit_consistency_check
+    enabled: true
+    severity: error
+    field: unit
+    check_field: unit
+    reference_field: child_code
+    fail_on_db_error: false  # 数据库查询失败时，不报错，允许继续验证
+    error_message: "子编码的单位与数据库中的单位不一致"
+  
+  # ==================== 逻辑校验 ====================
+  
+  - id: VR050
+    name: parent_child_not_same
+    description: 父编码和子编码不能相同
+    type: logic_check
+    enabled: true
+    severity: error
+    check_type: not_equal
+    fields: [parent_code, child_code]
+    error_message: "父编码和子编码不能相同（不能自己包含自己）"
+    
+  - id: VR051
+    name: duplicate_bom_item
+    description: 同一父编码下不能有重复的子编码
+    type: duplicate_check
+    enabled: true
+    severity: error
+    check_fields: [parent_code, child_code]
+    error_message: "同一父编码下存在重复的子编码"
+    
+  - id: VR052
+    name: circular_reference_check
+    description: 检查BOM是否存在循环引用
+    type: circular_check
+    enabled: true
+    severity: error
+    parent_field: parent_code
+    child_field: child_code
+    error_message: "BOM结构存在循环引用"
+  
+  # ==================== 状态校验 ====================
+  
+  - id: VR060
+    name: parent_status_check
+    description: 父物料状态必须为启用状态
+    type: status_check
+    enabled: true
+    severity: error
+    field: parent_code
+    check_source: plm_materials
+    allowed_status:
+      - "active"
+      - "approved"
+      - "启用"
+      - "已批准"
+    error_message: "父物料状态不是启用状态，不能作为父件"
+    
+  - id: VR061
+    name: child_status_check
+    description: 子物料状态必须为启用状态
+    type: status_check
+    enabled: true
+    severity: error
+    field: child_code
+    check_source: plm_materials
+    allowed_status:
+      - "active"
+      - "approved"
+      - "启用"
+      - "已批准"
+    error_message: "子物料状态不是启用状态，不能使用"
+  
+  # ==================== 业务规则校验 ====================
+  
+  - id: VR070
+    name: quantity_precision_check
+    description: 用量精度必须符合单位要求
+    type: precision_check
+    enabled: true
+    severity: warning
+    field: quantity
+    reference_field: unit
+    check_source: plm_units
+    error_message: "用量精度不符合单位要求"
+    
+  - id: VR071
+    name: bom_level_check
+    description: BOM层级不能超过限制
+    type: level_check
+    enabled: true
+    severity: warning
+    max_level: 10
+    error_message: "BOM层级超过10层，可能存在设计问题"
+    
+  - id: VR072
+    name: position_number_unique
+    description: 同一父编码下位置号不能重复
+    type: unique_check
+    enabled: true
+    severity: warning
+    parent_field: parent_code
+    check_field: position_number
+    allow_empty: true
+    error_message: "同一父编码下位置号重复"
+    
+  - id: VR073
+    name: child_code_unique_in_parent
+    description: 同一父编码下子编码不能重复（增强校验）
+    type: unique_check
+    enabled: true
+    severity: error
+    parent_field: parent_code
+    check_field: child_code
+    allow_empty: false
+    error_message: "同一父编码下存在重复的子编码，不允许重复"
+  
+  # ==================== 空格检查 ====================
+  
+  - id: VR080
+    name: child_code_no_space
+    description: 子编码不能包含空格
+    type: no_space_check
+    enabled: true
+    severity: error
+    field: child_code
+    allow_empty: false
+    error_message: "子编码不能包含空格"
+    
+  - id: VR081
+    name: quantity_no_space
+    description: 用量不能包含空格
+    type: no_space_check
+    enabled: true
+    severity: error
+    field: quantity
+    allow_empty: false
+    error_message: "用量不能包含空格"
+    
+  - id: VR082
+    name: position_number_no_space
+    description: 位置号不能包含空格
+    type: no_space_check
+    enabled: true
+    severity: error
+    field: position_number
+    allow_empty: true
+    error_message: "位置号不能包含空格"
+  
+  # ==================== 特殊业务规则校验 ====================
+  
+  - id: VR090
+    name: position_qty_match
+    description: PCA/PBS/PAI开头的父编码，位置号与用量必须匹配
+    type: position_qty_match
+    enabled: true
+    severity: error
+    field: quantity
+    check_prefixes: [PCA, PBS, PAI]  # 需要检查的父编码前缀
+    separator: ","                    # 位置号分隔符
+    allow_empty_position: false       # 是否允许位置号为空
+    error_message: "PCA/PBS/PAI开头的父编码，位置号与用量必须匹配（用量应等于逗号分隔的位置号数量）"
+
+  - id: VR091
+    name: pbs_child_code_restrict
+    description: 以PBS开头的父编码下不能出现以RED/CAD/TRD/ICD/MGD开头的子编码
+    type: pbs_child_code_restrict
+    enabled: true
+    severity: error
+    field: child_code
+    forbidden_prefixes: [RED, CAD, TRD, ICD, MGD]  # 禁止的子编码前缀
+    error_message: "以PBS开头的父编码下不能出现以RED/CAD/TRD/ICD/MGD开头的子编码"
+
+  - id: VR092
+    name: pca_child_code_restrict
+    description: 以PCA开头的父编码下不能出现以RES/CAS/TRS/ICS/MGS开头的子编码
+    type: pca_child_code_restrict
+    enabled: true
+    severity: error
+    field: child_code
+    forbidden_prefixes: [RES, CAS, TRS, ICS, MGS]  # 禁止的子编码前缀
+    error_message: "以PCA开头的父编码下不能出现以RES/CAS/TRS/ICS/MGS开头的子编码"
+
+  - id: VR100
+    name: child_code_position_match
+    description: 子编码与位置号前缀匹配
+    type: child_code_position_match
+    enabled: true
+    severity: error
+    field: child_code
+    separator: ","  # 位置号分隔符
+    allow_empty_position: true  # 允许位置号为空
+    child_to_position_map:
+      RED-00: [R]
+      RED-01: [R]
+      RED-02: [R]
+      RED-03: [R]
+      RED-04: [R]
+      RED-05: [R]
+      RED-06: [R]
+      RED-07: [R]
+      RED-08: [R]
+      RES: [R]
+      BUZ: [BZ]
+      CAD: [C]
+      CAS: [C]
+      CON: [CN]
+      RED-09: [RT]
+      RED-10: [RP]
+      RED-11: [RV]
+      CRS: [X]
+      FUS: [F]
+      ICD: [U]
+      ICS: [U]
+      IEA: [JP]
+      TRD-00: [D]
+      TRD-01: [D]
+      TRD-04: [D]
+      TRD-05: [D]
+      TRD-02: [DZ]
+      TRD-03: [TVS]
+      TRD-06: [LED]
+      TRD-07: [DB]
+      TRD-08: [Q]
+      TRD-09: [Q]
+      TRD-10: [Q]
+      TRD-11: [Q]
+      TRD-13: [SCR]
+      TRD-14: [SCR]
+      MGD-00: [L]
+      MGD-01: [L]
+      MGS-00: [L]
+      MGD-02: [TX]
+      MGD-03: [TX]
+      MGS-01: [LB]
+      TER: [BAR]
+      SRD-00: [SW]
+      SRD-01: [SW]
+      SRD-02: [SW]
+      SRD-07: [K]
+      RDT: [HS]
+    error_message: "子编码和位置号前缀不匹配"
+
+# 规则组配置（可以按场景启用不同的规则组）
+rule_groups:
+  # 基础校验（最严格，必须通过）
+  basic:
+    - VR001  # 父编码必填
+    - VR002  # 子编码必填
+    - VR003  # 用量必填
+    - VR004  # 单位必填
+    - VR005  # bomviewaltsuid必填
+    - VR006  # 单别必填
+    - VR007  # 工单类别必填
+    - VR010  # 父编码格式
+    - VR011  # 子编码格式
+    - VR012  # 用量格式
+    - VR013  # bomviewaltsuid格式（必须为0）
+    - VR031  # 单别白名单（BOM清单|BM11等）
+    - VR032  # 工单类别白名单（5101/5102/5103）
+    - VR080  # 子编码不能有空格
+    - VR081  # 用量不能有空格
+    - VR082  # 位置号不能有空格
+    - VR090  # PCA/PBS/PAI开头的父编码，位置号与用量必须匹配
+    - VR091  # PBS开头的父编码下不能出现RED/CAD/TRD/ICD/MGD前缀的子编码
+    - VR092  # PCA开头的父编码下不能出现RES/CAS/TRS/ICS/MGS前缀的子编码
+    - VR100  # 子编码与位置号前缀匹配
+    - VR073  # 同一父编码下子编码不能重复
+    
+  # 数据库校验
+  db_check:
+    - VR020  # 父编码存在性（数据库cpcitem表）
+    - VR021  # 子编码存在性（数据库cpcitem表）
+    - VR042  # 子编码单位一致性（数据库cpcitem表）
+  
+  # PLM系统校验
+  plm_check:
+    - VR030  # 单位白名单
+    - VR040  # 物料名称一致性
+    - VR041  # 单位一致性
+    - VR060  # 父物料状态
+    - VR061  # 子物料状态
+    
+  # 逻辑校验
+  logic_check:
+    - VR050  # 父子不能相同
+    - VR051  # 重复检查
+    - VR052  # 循环引用
+    - VR073  # 同一父编码下子编码唯一性检查
+    
+  # 业务规则校验
+  business_check:
+    - VR031  # 单别白名单
+    - VR032  # 工单类别白名单
+    - VR070  # 用量精度
+    - VR071  # BOM层级
+    - VR072  # 位置号唯一
+
+# 校验模式配置
+validation_modes:
+  # 严格模式：所有规则都启用
+  strict:
+    enabled_groups:
+      - basic
+      - db_check
+      - plm_check
+      - logic_check
+      - business_check
+    stop_on_error: true
+    
+  # 标准模式：启用基础、数据库和逻辑校验
+  standard:
+    enabled_groups:
+      - basic
+      - db_check
+      - logic_check
+    stop_on_error: false
+    
+  # 宽松模式：只启用基础校验
+  relaxed:
+    enabled_groups:
+      - basic
+    stop_on_error: false
+
+# 报告配置
+report_config:
+  title: "BOM自动化校验报告"
+  include_sections:
+    - summary           # 摘要
+    - error_list       # 错误列表
+    - warning_list     # 警告列表
+    - statistics       # 统计信息
+    - field_analysis   # 字段分析
+    - recommendations  # 建议
+  export_formats:
+    - html
+    - xlsx
+  
+  # 错误分组方式
+  error_grouping:
+    - by_rule          # 按规则分组
+    - by_field         # 按字段分组
+    - by_severity      # 按严重程度分组
+  
+  # 统计图表
+  charts:
+    - error_distribution    # 错误分布
+    - field_quality        # 字段质量
+    - pass_rate_trend      # 通过率趋势
+
+# 自定义错误消息模板
+error_message_templates:
+  required_check: "第{row}行：{field_name}不能为空"
+  format_check: "第{row}行：{field_name}格式错误，期望：{expected}，实际：{actual}"
+  existence_check: "第{row}行：{field_name}={value}在{source}中不存在"
+  whitelist_check: "第{row}行：{field_name}={value}不在允许的列表中"
+  consistency_check: "第{row}行：{field_name}与PLM系统不一致，期望：{expected}，实际：{actual}"
+  logic_check: "第{row}行：{message}"
+  duplicate_check: "第{row}行：{field_name}={value}重复"
+  status_check: "第{row}行：{field_name}={value}状态为{status}，不允许使用"

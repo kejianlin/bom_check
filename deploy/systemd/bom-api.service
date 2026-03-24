@@ -1,0 +1,32 @@
+[Unit]
+Description=BOM Validation API Service
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=simple
+User=bomuser
+Group=bomuser
+WorkingDirectory=/opt/bom_check
+Environment="PATH=/opt/bom_check/venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONUNBUFFERED=1"
+EnvironmentFile=/opt/bom_check/.env
+
+ExecStart=/opt/bom_check/venv/bin/python /opt/bom_check/api_server.py
+
+# 重启策略
+Restart=always
+RestartSec=10
+StartLimitInterval=200
+StartLimitBurst=5
+
+# 日志配置
+StandardOutput=append:/opt/bom_check/logs/api_service.log
+StandardError=append:/opt/bom_check/logs/api_service_error.log
+
+# 安全配置
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
