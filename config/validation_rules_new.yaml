@@ -331,10 +331,12 @@ validation_rules:
     description: 同一父编码下位置号不能重复
     type: unique_check
     enabled: true
-    severity: warning
+    severity: error
     parent_field: parent_code
     check_field: position_number
     allow_empty: true
+    split_values: true
+    separator: ","
     error_message: "同一父编码下位置号重复"
     
   - id: VR073
@@ -379,6 +381,18 @@ validation_rules:
     field: position_number
     allow_empty: true
     error_message: "位置号不能包含空格"
+
+  - id: VR083
+    name: position_number_separator_check
+    description: 位置号只能使用英文逗号分隔
+    type: separator_check
+    enabled: true
+    severity: error
+    field: position_number
+    allow_empty: true
+    allowed_separator: ","
+    forbidden_separators: ["，", "、", "；", ";"]
+    error_message: "位置号只能使用英文逗号分隔"
   
   # ==================== 特殊业务规则校验 ====================
   
@@ -494,6 +508,7 @@ rule_groups:
     - VR080  # 子编码不能有空格
     - VR081  # 用量不能有空格
     - VR082  # 位置号不能有空格
+    - VR083  # 位置号只能使用英文逗号分隔
     - VR090  # PCA/PBS/PAI开头的父编码，位置号与用量必须匹配
     - VR091  # PBS开头的父编码下不能出现RED/CAD/TRD/ICD/MGD前缀的子编码
     - VR092  # PCA开头的父编码下不能出现RES/CAS/TRS/ICS/MGS前缀的子编码
@@ -519,6 +534,7 @@ rule_groups:
     - VR050  # 父子不能相同
     - VR051  # 重复检查
     - VR052  # 循环引用
+    - VR072  # 同一父编码下位置号唯一性检查
     - VR073  # 同一父编码下子编码唯一性检查
     
   # 业务规则校验

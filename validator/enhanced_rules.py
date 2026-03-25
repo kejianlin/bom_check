@@ -632,6 +632,7 @@ class UniqueCheckRule(ValidationRule):
     def __init__(self, rule_config: dict):
         super().__init__(rule_config)
         self.parent_values: Dict[str, Set[Any]] = {}
+        self.parent_first_rows: Dict[str, Dict[Any, int]] = {}
     
     def validate(self, item: BOMItem, plm_data: dict) -> Optional[ValidationError]:
         if not self.enabled:
@@ -652,27 +653,64 @@ class UniqueCheckRule(ValidationRule):
         
         if not check_value:
             return None
+
+        split_values = self.config.get('split_values', False)
+        separator = self.config.get('separator', ',')
+        if split_values and isinstance(check_value, str):
+            check_values = [v.strip() for v in str(check_value).split(separator) if v.strip()]
+        else:
+            check_values = [check_value]
+
+        # 先检查同一个单元格内是否有重复值，例如 R24,R24
+        local_seen = set()
+        local_duplicates = []
+        for value in check_values:
+            if value in local_seen and value not in local_duplicates:
+                local_duplicates.append(value)
+            local_seen.add(value)
+        if local_duplicates:
+            check_field_label = self._get_field_label(check_field)
+            return self.create_error(
+                item,
+                f"{check_field_label}({check_field})中存在重复值：{', '.join(map(str, local_duplicates))}",
+                expected_value="单元格内值需唯一",
+                actual_value=str(check_value),
+                field=check_field
+            )
         
         # 初始化父编码的值集合
         if parent_value not in self.parent_values:
             self.parent_values[parent_value] = set()
+        if parent_value not in self.parent_first_rows:
+            self.parent_first_rows[parent_value] = {}
         
-        # 检查是否重复
-        if check_value in self.parent_values[parent_value]:
+        duplicate_values = [v for v in check_values if v in self.parent_values[parent_value]]
+        if duplicate_values:
             check_field_label = self._get_field_label(check_field)
+            first_rows = []
+            for value in duplicate_values:
+                first_row = self.parent_first_rows[parent_value].get(value)
+                if first_row is not None:
+                    first_rows.append(f"{value}(首次出现在第{first_row}行)")
+
             return self.create_error(
                 item,
-                f"在父编码{parent_value}下，{check_field_label}({check_field})={check_value}重复",
+                f"在父编码{parent_value}下，{check_field_label}({check_field})重复：{', '.join(first_rows or map(str, duplicate_values))}",
                 expected_value="唯一值",
-                actual_value=check_value
+                actual_value=', '.join(map(str, duplicate_values)),
+                field=check_field
             )
         
-        self.parent_values[parent_value].add(check_value)
+        for value in check_values:
+            self.parent_values[parent_value].add(value)
+            if value not in self.parent_first_rows[parent_value]:
+                self.parent_first_rows[parent_value][value] = item.row_number
         return None
     
     def reset(self):
         """重置状态"""
         self.parent_values.clear()
+        self.parent_first_rows.clear()
 
 
 class NoSpaceCheckRule(ValidationRule):
@@ -703,6 +741,40 @@ class NoSpaceCheckRule(ValidationRule):
                 actual_value=str_value
             )
         
+        return None
+
+
+class SeparatorCheckRule(ValidationRule):
+    """分隔符校验规则 - 仅允许指定分隔符"""
+
+    def validate(self, item: BOMItem, plm_data: dict) -> Optional[ValidationError]:
+        if not self.enabled:
+            return None
+
+        raw_value = item.raw_data.get(self.field) if getattr(item, 'raw_data', None) else None
+        value = raw_value if raw_value is not None else getattr(item, self.field, None)
+
+        if self.config.get('allow_empty', False) and not value:
+            return None
+
+        if not value:
+            return None
+
+        str_value = str(value)
+        allowed_separator = self.config.get('allowed_separator', ',')
+        forbidden_separators = self.config.get('forbidden_separators', ['，', '、', '；', ';'])
+        field_label = self._get_field_label()
+
+        hit_separators = [sep for sep in forbidden_separators if sep in str_value]
+        if hit_separators:
+            return self.create_error(
+                item,
+                f"{field_label}({self.field})只能使用英文逗号(,)分隔",
+                expected_value=f"使用英文逗号({allowed_separator})分隔",
+                actual_value=str_value,
+                field=self.field
+            )
+
         return None
 
 
@@ -911,6 +983,7 @@ class RuleFactory:
         'status_check': StatusCheckRule,
         'unique_check': UniqueCheckRule,
         'no_space_check': NoSpaceCheckRule,
+        'separator_check': SeparatorCheckRule,
         'position_qty_match': PositionQtyMatchRule,
         'pbs_child_code_restrict': PBSChildCodeRestrictRule,
         'pca_child_code_restrict': PCAChildCodeRestrictRule,
