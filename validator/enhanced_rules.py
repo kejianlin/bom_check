@@ -38,18 +38,20 @@ class ValidationRule:
             field_name = self.field
         return BOMItem.get_field_label(field_name)
     
-    def create_error(self, item: BOMItem, message: str = None, 
-                    expected_value: Any = None, actual_value: Any = None) -> ValidationError:
+    def create_error(self, item: BOMItem, message: str = None,
+                    expected_value: Any = None, actual_value: Any = None,
+                    field: str = None, highlight_fields: List[str] = None) -> ValidationError:
         """创建错误对象"""
         return ValidationError(
             row_number=item.row_number,
             rule_id=self.rule_id,
             rule_name=self.name,
             severity=self.severity,
-            field=self.field,
+            field=field or self.field,
             message=message or self.error_message,
             expected_value=expected_value,
-            actual_value=actual_value
+            actual_value=actual_value,
+            highlight_fields=highlight_fields or []
         )
 
 
@@ -680,7 +682,8 @@ class NoSpaceCheckRule(ValidationRule):
         if not self.enabled:
             return None
         
-        value = getattr(item, self.field, None)
+        raw_value = item.raw_data.get(self.field) if getattr(item, 'raw_data', None) else None
+        value = raw_value if raw_value is not None else getattr(item, self.field, None)
         field_label = self._get_field_label()
         
         # 允许为空的情况
@@ -690,8 +693,8 @@ class NoSpaceCheckRule(ValidationRule):
         if not value:
             return None
         
-        # 转换为字符串并检查是否包含空格
-        str_value = str(value).strip()
+        # 使用原始值检查前后空格和中间空格，避免被读取阶段strip后漏检
+        str_value = str(value)
         if ' ' in str_value:
             return self.create_error(
                 item,
@@ -739,7 +742,8 @@ class PositionQtyMatchRule(ValidationRule):
                     item,
                     f"父编码{parent_code}以{','.join(check_prefixes)}开头，{position_label}(position_number)不能为空",
                     expected_value="非空位置号（逗号分隔）",
-                    actual_value=None
+                    actual_value=None,
+                    field='position_number'
                 )
         
         # 如果用量为空
@@ -782,7 +786,9 @@ class PositionQtyMatchRule(ValidationRule):
                 item,
                 f"{position_label}(position_number)数量({position_count})与{quantity_label}(quantity)({quantity_int})不匹配",
                 expected_value=f"{quantity_label}数={position_count}（{position_label}数量）",
-                actual_value=f"{quantity_label}={quantity_int}，{position_label}={position_str}"
+                actual_value=f"{quantity_label}={quantity_int}，{position_label}={position_str}",
+                field='position_number',
+                highlight_fields=['position_number', 'quantity']
             )
         
         # 额外检查：验证位置号格式（可选）
@@ -795,7 +801,8 @@ class PositionQtyMatchRule(ValidationRule):
                         item,
                         f"第{idx}个{position_label}(position_number)'{pos}'格式不符合要求",
                         expected_value=f"匹配模式: {position_pattern}",
-                        actual_value=pos
+                        actual_value=pos,
+                        field='position_number'
                     )
         
         return None
@@ -881,7 +888,8 @@ class ChildCodePositionMatchRule(ValidationRule):
                 item,
                 f"子编码{child_code}以{child_prefix_upper}开头，位置号应以{'/'.join(matched_position_prefixes)}开头，但以下位置号不符合：{', '.join(invalid_positions)}",
                 expected_value=f"位置号以 {'/'.join(matched_position_prefixes)} 开头",
-                actual_value=', '.join(invalid_positions)
+                actual_value=', '.join(invalid_positions),
+                field='position_number'
             )
         
         return None

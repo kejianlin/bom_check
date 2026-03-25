@@ -63,6 +63,7 @@ class ValidationError:
     message: str
     expected_value: Optional[Any] = None
     actual_value: Optional[Any] = None
+    highlight_fields: List[str] = field(default_factory=list)
 
 
 @dataclass
