@@ -187,7 +187,7 @@ validation_rules:
       - "配电BOM|PBOM"     # 配电BOM
       - "新能源BOM|XBOM"   # 新能源BOM
       - "易立高BOM|YBOM"   # 易立高BOM
-    error_message: "单别必须是：BOM清单|BM11、配电BOM|PBOM、新能源BOM|XBOM、易立高BOM|YBOM之一"
+    error_message: "单别无效值"
     
   - id: VR032
     name: work_order_category_whitelist

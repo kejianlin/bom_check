@@ -863,7 +863,8 @@ class ChildCodePositionMatchRule(ValidationRule):
         if isinstance(matched_position_prefixes, str):
             matched_position_prefixes = [matched_position_prefixes]
         
-        # 检查每一个位置号是否以允许的前缀开头
+        # 检查每一个位置号是否以允许的前缀开头，汇总所有不匹配的位置号
+        invalid_positions = []
         for pos_value in position_values:
             position_valid = False
             for expected_prefix in matched_position_prefixes:
@@ -873,12 +874,15 @@ class ChildCodePositionMatchRule(ValidationRule):
                     break
             
             if not position_valid:
-                return self.create_error(
-                    item,
-                    f"子编码{child_code}以{child_prefix_upper}开头，位置号应以{'/'.join(matched_position_prefixes)}开头，但实际为{pos_value}",
-                    expected_value=f"位置号以 {'/'.join(matched_position_prefixes)} 开头",
-                    actual_value=pos_value
-                )
+                invalid_positions.append(pos_value)
+        
+        if invalid_positions:
+            return self.create_error(
+                item,
+                f"子编码{child_code}以{child_prefix_upper}开头，位置号应以{'/'.join(matched_position_prefixes)}开头，但以下位置号不符合：{', '.join(invalid_positions)}",
+                expected_value=f"位置号以 {'/'.join(matched_position_prefixes)} 开头",
+                actual_value=', '.join(invalid_positions)
+            )
         
         return None
 
