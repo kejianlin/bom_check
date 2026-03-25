@@ -59,6 +59,7 @@ class SyncEngine:
             
             source_engine = self.db_helper.get_engine('plm_production')
             target_engine = self.db_helper.get_engine('plm_sync')
+            target_inspector = inspect(target_engine)
             
             primary_key = table_config.get('primary_key', 'id')
             incremental_field = table_config.get('incremental_field')
@@ -73,7 +74,7 @@ class SyncEngine:
             
             with source_engine.connect() as source_conn:
                 result = source_conn.execute(text(query))
-                columns = result.keys()
+                source_columns = list(result.keys())
                 rows = result.fetchall()
                 
                 logger.info(f"从源数据库读取 {len(rows)} 条记录")
@@ -81,6 +82,28 @@ class SyncEngine:
                 if len(rows) == 0:
                     logger.info(f"表 {table_name} 没有需要同步的数据")
                     return {'status': 'success', 'records': 0, 'message': '无新数据'}
+
+                if not target_inspector.has_table(table_name):
+                    error_msg = f"目标数据库中不存在表: {table_name}"
+                    logger.error(error_msg)
+                    return {'status': 'failed', 'error': error_msg}
+
+                target_columns = {
+                    column['name'] for column in target_inspector.get_columns(table_name)
+                }
+                common_columns = [col for col in source_columns if col in target_columns]
+
+                if primary_key not in common_columns:
+                    error_msg = f"目标表{table_name}缺少主键字段: {primary_key}"
+                    logger.error(error_msg)
+                    return {'status': 'failed', 'error': error_msg}
+
+                skipped_columns = [col for col in source_columns if col not in target_columns]
+                if skipped_columns:
+                    logger.warning(
+                        f"表 {table_name} 跳过 {len(skipped_columns)} 个目标表不存在的字段，如: "
+                        f"{', '.join(skipped_columns[:10])}"
+                    )
                 
                 synced_count = 0
                 batch_size = self.config['sync_strategy'].get('batch_size', 1000)
@@ -94,26 +117,43 @@ class SyncEngine:
                         batch = rows[i:i + batch_size]
                         
                         for row in batch:
-                            row_dict = dict(zip(columns, row))
+                            source_row_dict = dict(zip(source_columns, row))
+                            row_dict = {col: source_row_dict.get(col) for col in common_columns}
                             
-                            placeholders = ', '.join([f':{col}' for col in columns])
-                            columns_str = ', '.join(columns)
+                            placeholders = ', '.join([f':{col}' for col in common_columns])
+                            columns_str = ', '.join(common_columns)
                             
-                            update_set = ', '.join([f'{col}=:{col}' for col in columns if col != primary_key])
+                            update_set = ', '.join(
+                                [f'{col}=:{col}' for col in common_columns if col != primary_key]
+                            )
                             
                             if db_type == 'postgresql':
-                                upsert_query = f"""
-                                    INSERT INTO {table_name} ({columns_str})
-                                    VALUES ({placeholders})
-                                    ON CONFLICT ({primary_key}) DO UPDATE SET {update_set}
-                                """
+                                if update_set:
+                                    upsert_query = f"""
+                                        INSERT INTO {table_name} ({columns_str})
+                                        VALUES ({placeholders})
+                                        ON CONFLICT ({primary_key}) DO UPDATE SET {update_set}
+                                    """
+                                else:
+                                    upsert_query = f"""
+                                        INSERT INTO {table_name} ({columns_str})
+                                        VALUES ({placeholders})
+                                        ON CONFLICT ({primary_key}) DO NOTHING
+                                    """
                             else:
                                 # MySQL/MariaDB
-                                upsert_query = f"""
-                                    INSERT INTO {table_name} ({columns_str})
-                                    VALUES ({placeholders})
-                                    ON DUPLICATE KEY UPDATE {update_set}
-                                """
+                                if update_set:
+                                    upsert_query = f"""
+                                        INSERT INTO {table_name} ({columns_str})
+                                        VALUES ({placeholders})
+                                        ON DUPLICATE KEY UPDATE {update_set}
+                                    """
+                                else:
+                                    upsert_query = f"""
+                                        INSERT INTO {table_name} ({columns_str})
+                                        VALUES ({placeholders})
+                                        ON DUPLICATE KEY UPDATE {primary_key}={primary_key}
+                                    """
                             
                             try:
                                 target_conn.execute(text(upsert_query), row_dict)
