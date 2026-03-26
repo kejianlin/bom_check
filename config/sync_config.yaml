@@ -58,9 +58,10 @@ tables:
     
   CPCITEM:
     enabled: true
-    primary_key: itemcode
+    primary_key: itemid
     incremental_field: updatetime
     indexes:
+      - itemid
       - itemcode
       - itemtype
 
