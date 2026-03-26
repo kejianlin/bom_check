@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-BOM自动化校验主程序
+BOM自动化校验主程序（命令行校验）
 用于校验Excel BOM文件并生成校验报告
 """
 
