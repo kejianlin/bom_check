@@ -23,6 +23,19 @@ class SyncEngine:
         self.config_path = config_path
         self.config = self._load_config()
         self.db_helper = DatabaseHelper()
+
+    @staticmethod
+    def _normalize_name(name: str) -> str:
+        """统一名称比较规则。"""
+        return str(name).strip().lower()
+
+    def _get_table_config(self, table_name: str) -> tuple[str, Dict[str, Any]]:
+        """大小写不敏感地获取表配置。"""
+        normalized_name = self._normalize_name(table_name)
+        for configured_name, table_config in self.config['tables'].items():
+            if self._normalize_name(configured_name) == normalized_name:
+                return configured_name, table_config
+        return table_name, {}
         
     def _load_config(self) -> Dict[str, Any]:
         """加载同步配置"""
@@ -52,7 +65,7 @@ class SyncEngine:
         start_time = datetime.now()
         
         try:
-            table_config = self.config['tables'].get(table_name, {})
+            configured_table_name, table_config = self._get_table_config(table_name)
             if not table_config.get('enabled', False):
                 logger.warning(f"表 {table_name} 未启用同步")
                 return {'status': 'skipped', 'message': '未启用'}
@@ -63,14 +76,17 @@ class SyncEngine:
             
             primary_key = table_config.get('primary_key', 'id')
             incremental_field = table_config.get('incremental_field')
+            target_tables = {self._normalize_name(name): name for name in target_inspector.get_table_names()}
+            source_table_name = configured_table_name
+            target_table_name = target_tables.get(self._normalize_name(configured_table_name), configured_table_name)
             
             where_clause = ""
             if mode == 'incremental' and incremental_field:
-                last_sync_time = self._get_last_sync_time(table_name)
+                last_sync_time = self._get_last_sync_time(configured_table_name)
                 if last_sync_time:
                     where_clause = f"WHERE {incremental_field} > '{last_sync_time}'"
             
-            query = f"SELECT * FROM {table_name} {where_clause}"
+            query = f"SELECT * FROM {source_table_name} {where_clause}"
             
             with source_engine.connect() as source_conn:
                 result = source_conn.execute(text(query))
@@ -80,28 +96,41 @@ class SyncEngine:
                 logger.info(f"从源数据库读取 {len(rows)} 条记录")
                 
                 if len(rows) == 0:
-                    logger.info(f"表 {table_name} 没有需要同步的数据")
+                    logger.info(f"表 {configured_table_name} 没有需要同步的数据")
                     return {'status': 'success', 'records': 0, 'message': '无新数据'}
 
-                if not target_inspector.has_table(table_name):
-                    error_msg = f"目标数据库中不存在表: {table_name}"
+                if self._normalize_name(configured_table_name) not in target_tables:
+                    error_msg = f"目标数据库中不存在表: {configured_table_name}"
                     logger.error(error_msg)
                     return {'status': 'failed', 'error': error_msg}
 
-                target_columns = {
-                    column['name'] for column in target_inspector.get_columns(table_name)
+                target_columns = target_inspector.get_columns(target_table_name)
+                target_column_map = {
+                    self._normalize_name(column['name']): column['name'] for column in target_columns
                 }
-                common_columns = [col for col in source_columns if col in target_columns]
+                source_column_map = {
+                    self._normalize_name(column): column for column in source_columns
+                }
+                common_columns = [
+                    source_column_map[name]
+                    for name in source_column_map
+                    if name in target_column_map
+                ]
+                primary_key_source = source_column_map.get(self._normalize_name(primary_key))
+                primary_key_target = target_column_map.get(self._normalize_name(primary_key))
 
-                if primary_key not in common_columns:
-                    error_msg = f"目标表{table_name}缺少主键字段: {primary_key}"
+                if not primary_key_source or not primary_key_target:
+                    error_msg = f"目标表{configured_table_name}缺少主键字段: {primary_key}"
                     logger.error(error_msg)
                     return {'status': 'failed', 'error': error_msg}
 
-                skipped_columns = [col for col in source_columns if col not in target_columns]
+                skipped_columns = [
+                    col for col in source_columns
+                    if self._normalize_name(col) not in target_column_map
+                ]
                 if skipped_columns:
                     logger.warning(
-                        f"表 {table_name} 跳过 {len(skipped_columns)} 个目标表不存在的字段，如: "
+                        f"表 {configured_table_name} 跳过 {len(skipped_columns)} 个目标表不存在的字段，如: "
                         f"{', '.join(skipped_columns[:10])}"
                     )
                 
@@ -118,62 +147,66 @@ class SyncEngine:
                         
                         for row in batch:
                             source_row_dict = dict(zip(source_columns, row))
-                            row_dict = {col: source_row_dict.get(col) for col in common_columns}
+                            row_dict = {
+                                target_column_map[self._normalize_name(col)]: source_row_dict.get(col)
+                                for col in common_columns
+                            }
                             
-                            placeholders = ', '.join([f':{col}' for col in common_columns])
-                            columns_str = ', '.join(common_columns)
+                            db_columns = list(row_dict.keys())
+                            placeholders = ', '.join([f':{col}' for col in db_columns])
+                            columns_str = ', '.join(db_columns)
                             
                             update_set = ', '.join(
-                                [f'{col}=:{col}' for col in common_columns if col != primary_key]
+                                [f'{col}=:{col}' for col in db_columns if col != primary_key_target]
                             )
                             
                             if db_type == 'postgresql':
                                 if update_set:
                                     upsert_query = f"""
-                                        INSERT INTO {table_name} ({columns_str})
+                                        INSERT INTO {target_table_name} ({columns_str})
                                         VALUES ({placeholders})
-                                        ON CONFLICT ({primary_key}) DO UPDATE SET {update_set}
+                                        ON CONFLICT ({primary_key_target}) DO UPDATE SET {update_set}
                                     """
                                 else:
                                     upsert_query = f"""
-                                        INSERT INTO {table_name} ({columns_str})
+                                        INSERT INTO {target_table_name} ({columns_str})
                                         VALUES ({placeholders})
-                                        ON CONFLICT ({primary_key}) DO NOTHING
+                                        ON CONFLICT ({primary_key_target}) DO NOTHING
                                     """
                             else:
                                 # MySQL/MariaDB
                                 if update_set:
                                     upsert_query = f"""
-                                        INSERT INTO {table_name} ({columns_str})
+                                        INSERT INTO {target_table_name} ({columns_str})
                                         VALUES ({placeholders})
                                         ON DUPLICATE KEY UPDATE {update_set}
                                     """
                                 else:
                                     upsert_query = f"""
-                                        INSERT INTO {table_name} ({columns_str})
+                                        INSERT INTO {target_table_name} ({columns_str})
                                         VALUES ({placeholders})
-                                        ON DUPLICATE KEY UPDATE {primary_key}={primary_key}
+                                        ON DUPLICATE KEY UPDATE {primary_key_target}={primary_key_target}
                                     """
                             
                             try:
                                 target_conn.execute(text(upsert_query), row_dict)
                                 synced_count += 1
                             except Exception as e:
-                                logger.error(f"同步记录失败 {primary_key}={row_dict.get(primary_key)}: {str(e)}")
+                                logger.error(f"同步记录失败 {primary_key_target}={row_dict.get(primary_key_target)}: {str(e)}")
                         
                         logger.info(f"已同步 {synced_count}/{len(rows)} 条记录")
             
             duration = (datetime.now() - start_time).total_seconds()
             
             self._log_sync_result(
-                table_name=table_name,
+                table_name=configured_table_name,
                 sync_type=mode,
                 records_synced=synced_count,
                 status='success',
                 duration=duration
             )
             
-            logger.info(f"表 {table_name} 同步完成，共 {synced_count} 条记录，耗时 {duration:.2f} 秒")
+            logger.info(f"表 {configured_table_name} 同步完成，共 {synced_count} 条记录，耗时 {duration:.2f} 秒")
             
             return {
                 'status': 'success',

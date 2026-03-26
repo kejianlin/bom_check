@@ -38,32 +38,76 @@ cleanup:
 tables:
   CPCBOM:
     enabled: true
-    primary_key: bomid
-    incremental_field: updatetime
+    primary_key: BOMID
+    incremental_field: UPDATETIME
     indexes:
-      - bomid
-      - bomcode
+      - BOMID
+      - BOMCODE
     
   CPCBOMD:
     enabled: true
-    primary_key: bomdid
+    primary_key: BOMDID
     foreign_keys:
-      - field: bomid
-        references: CPCBOM.bomid
-    incremental_field: updatetime
+      - field: BOMID
+        references: CPCBOM.BOMID
+    incremental_field: UPDATETIME
     indexes:
-      - bomid
-      - parentitem
-      - childitem
+      - BOMID
+      - PARENTITEM
+      - CHILDITEM
     
   CPCITEM:
     enabled: true
-    primary_key: itemid
-    incremental_field: updatetime
+    primary_key: ITEMID
+    incremental_field: UPDATETIME
+    include_columns:
+      - ITEMID
+      - REV
+      - INVORGID
+      - ITEMCODE
+      - ITEMNAME
+      - ITEMENAME
+      - ITEMDESC
+      - DRAWID
+      - REVLABEL
+      - TSSTYPE
+      - ITEMTYPE
+      - ITEMCLASS
+      - CLAS
+      - ITEMUNIT
+      - WEIGHTUNIT
+      - ITEMFLAG
+      - STAT
+      - ACTIVED
+      - LIFECYCLE
+      - SPEC
+      - MATERIAL
+      - MATERIALTYPE
+      - STANDARD
+      - WEIGHT
+      - COST
+      - GOALCOST
+      - PRICE
+      - VENDOR
+      - STOCKITEM
+      - STOCKTYPE
+      - PURCHFLAG
+      - MANUFLAG
+      - DSGFLAG
+      - CREATOR
+      - CREATETIME
+      - UPDATOR
+      - UPDATETIME
+      - ITEMDEF1
+      - ITEMDEF2
+      - ITEMDEF3
+      - ITEMDEF4
+      - ITEMDEF5
+      - NOTE
     indexes:
-      - itemid
-      - itemcode
-      - itemtype
+      - ITEMID
+      - ITEMCODE
+      - ITEMTYPE
 
 # 数据转换规则
 transformations:
