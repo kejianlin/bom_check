@@ -1,7 +1,6 @@
 [Unit]
 Description=BOM Validation API Service
-After=network.target mysql.service
-Wants=mysql.service
+After=network.target
 
 [Service]
 Type=simple
@@ -21,8 +20,8 @@ StartLimitInterval=200
 StartLimitBurst=5
 
 # 日志配置
-StandardOutput=append:/opt/bom_check/logs/api_service.log
-StandardError=append:/opt/bom_check/logs/api_service_error.log
+StandardOutput=journal
+StandardError=journal
 
 # 安全配置
 NoNewPrivileges=true

@@ -18,6 +18,9 @@ jobs:
       with:
         ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
+    - name: Check loaded SSH keys
+      run: ssh-add -l
+
     - name: Add server to known hosts
       run: |
         mkdir -p ~/.ssh
@@ -47,13 +50,13 @@ jobs:
         if [[ "${{ secrets.SERVER_HOST }}" == *":"* ]]; then
           HOST=$(echo "${{ secrets.SERVER_HOST }}" | cut -d: -f1)
           PORT=$(echo "${{ secrets.SERVER_HOST }}" | cut -d: -f2)
-          SSH_CMD="ssh -p $PORT ${{ secrets.SERVER_USER }}@$HOST"
+          SSH_CMD="ssh -o BatchMode=yes -o IdentitiesOnly=yes -p $PORT ${{ secrets.SERVER_USER }}@$HOST"
         else
-          SSH_CMD="ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}"
+          SSH_CMD="ssh -o BatchMode=yes -o IdentitiesOnly=yes ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}"
         fi
         echo "Using SSH command: $SSH_CMD"
         $SSH_CMD << 'EOF'
           cd /opt/bom_check
-          git pull origin master
-          sudo bash deploy/scripts/deploy.sh
+          git pull --ff-only origin master
+          sudo bash deploy/scripts/deploy_update.sh
         EOF

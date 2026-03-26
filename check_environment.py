@@ -8,6 +8,7 @@
 import sys
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 def check_python_version():
     """检查Python版本"""
@@ -131,19 +132,45 @@ def check_directories():
 def check_oracle_client():
     """检查Oracle客户端（如果需要连接Oracle）"""
     print("\n检查Oracle Instant Client...")
-    
-    # 检查环境变量
-    oracle_paths = [
-        os.environ.get('ORACLE_HOME'),
-        os.environ.get('LD_LIBRARY_PATH'),
+
+    candidate_paths = []
+
+    # 优先检查显式配置
+    for env_name in ['ORACLE_CLIENT_LIB', 'ORACLE_HOME']:
+        env_value = os.environ.get(env_name)
+        if env_value:
+            candidate_paths.append((env_name, env_value))
+
+    # LD_LIBRARY_PATH 可能包含多个目录
+    ld_library_path = os.environ.get('LD_LIBRARY_PATH')
+    if ld_library_path:
+        for path in ld_library_path.split(':'):
+            if path:
+                candidate_paths.append(('LD_LIBRARY_PATH', path))
+
+    # 常见安装路径
+    for path in [
+        '/opt/oracle/instantclient_19_30',
+        '/opt/oracle/instantclient_19_22',
         '/opt/oracle/instantclient_19_12',
         '/opt/oracle/instantclient_21_1',
-    ]
-    
+        '/opt/oracle/instantclient_11_2',
+    ]:
+        candidate_paths.append(('default', path))
+
     found = False
-    for path in oracle_paths:
-        if path and os.path.exists(str(path)):
-            print(f"  ✅ 找到Oracle客户端: {path}")
+    checked = set()
+    for source, path in candidate_paths:
+        normalized = str(path).strip()
+        if not normalized or normalized in checked:
+            continue
+        checked.add(normalized)
+
+        if os.path.exists(normalized):
+            if source == 'default':
+                print(f"  ✅ 找到Oracle客户端: {normalized}")
+            else:
+                print(f"  ✅ 找到Oracle客户端({source}): {normalized}")
             found = True
             break
     
@@ -156,6 +183,8 @@ def check_oracle_client():
 
 def main():
     """主函数"""
+    load_dotenv()
+
     print("="*60)
     print("BOM检查系统 - 环境检查")
     print("="*60)
