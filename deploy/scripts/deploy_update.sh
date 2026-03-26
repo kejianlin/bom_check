@@ -47,7 +47,7 @@ update_code() {
 
 install_python_deps() {
     log "Installing Python dependencies"
-    run_as_app_user "'${VENV_PYTHON}' -m pip install --upgrade pip setuptools wheel && '${VENV_PYTHON}' -m pip install -r requirements.txt"
+    run_as_app_user "'${VENV_PYTHON}' -m pip install --upgrade pip setuptools wheel && '${VENV_PYTHON}' -m pip install -r requirements-prod.txt"
 }
 
 ensure_runtime_dirs() {
