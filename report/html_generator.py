@@ -96,7 +96,7 @@ class HTMLReportGenerator:
         }
         
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: radial-gradient(circle at top left, rgba(31, 144, 255, 0.18), transparent 28%),radial-gradient(circle at top right, rgba(11, 179, 199, 0.14), transparent 24%),                linear-gradient(140deg, #0e1722 0%, #0a121b 48%, #121e2b 100%);
             color: white;
             padding: 30px;
             text-align: center;
@@ -268,7 +268,7 @@ class HTMLReportGenerator:
 <body>
     <div class="container">
         <div class="header">
-            <h1>BOM自动化校验报告</h1>
+            <h1>BOM校验报告</h1>
             <div class="subtitle">{{ file_name }} | {{ validation_time }}</div>
         </div>
         
@@ -304,29 +304,6 @@ class HTMLReportGenerator:
             {% if error_count > 0 %}
             <div class="section">
                 <h2>错误列表 ({{ error_count }})</h2>
-                
-                <div class="chart-container">
-                    <h3>错误分类统计</h3>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>错误类型</th>
-                                <th>数量</th>
-                                <th>占比</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for rule_name, count in error_summary.items() %}
-                            <tr>
-                                <td>{{ rule_name }}</td>
-                                <td>{{ count }}</td>
-                                <td>{{ "%.1f" | format((count / error_count * 100)) }}%</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                
                 <table>
                     <thead>
                         <tr>
@@ -390,39 +367,10 @@ class HTMLReportGenerator:
                 ✓ 恭喜！所有BOM条目均通过校验，无错误和警告。
             </div>
             {% endif %}
-            
-            <div class="section">
-                <h2>建议措施</h2>
-                <div style="padding: 20px; background: #f9f9f9; border-radius: 8px; line-height: 1.8;">
-                    {% if error_count > 0 %}
-                    <p><strong>必须修复以下问题：</strong></p>
-                    <ul style="margin-left: 20px; margin-top: 10px;">
-                        {% for rule_name, count in error_summary.items() %}
-                        <li>修复 {{ count }} 个 "{{ rule_name }}" 错误</li>
-                        {% endfor %}
-                    </ul>
-                    {% endif %}
-                    
-                    {% if warning_count > 0 %}
-                    <p style="margin-top: 15px;"><strong>建议检查以下问题：</strong></p>
-                    <ul style="margin-left: 20px; margin-top: 10px;">
-                        {% for rule_name, count in warning_summary.items() %}
-                        <li>检查 {{ count }} 个 "{{ rule_name }}" 警告</li>
-                        {% endfor %}
-                    </ul>
-                    {% endif %}
-                    
-                    {% if error_count == 0 and warning_count == 0 %}
-                    <p>✓ BOM文件质量良好，可以继续流程。</p>
-                    {% endif %}
-                </div>
-            </div>
         </div>
         
         <div class="footer">
-            <p>本报告由PLM只读同步库自动生成</p>
             <p>生成时间: {{ validation_time }}</p>
-            <p>© 2026 BOM自动化校验系统</p>
         </div>
     </div>
 </body>

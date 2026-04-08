@@ -857,8 +857,8 @@ class PositionQtyMatchRule(ValidationRule):
             return self.create_error(
                 item,
                 f"{position_label}(position_number)数量({position_count})与{quantity_label}(quantity)({quantity_int})不匹配",
-                expected_value=f"{quantity_label}数={position_count}（{position_label}数量）",
-                actual_value=f"{quantity_label}={quantity_int}，{position_label}={position_str}",
+                expected_value=f"{quantity_label}={quantity_int}，{position_label}数量为{quantity_int}",
+                actual_value=f"{quantity_label}={quantity_int}，{position_label}数量为{position_count}（{position_str}）",
                 field='position_number',
                 highlight_fields=['position_number', 'quantity']
             )

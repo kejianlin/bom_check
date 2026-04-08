@@ -14,7 +14,7 @@ logger = get_default_logger()
 class ValidationEngine:
     """BOM校验引擎"""
     
-    def __init__(self, config_path: str = "config/validation_rules_new.yaml"):
+    def __init__(self, config_path: str = "config/validation_rules"):
         self.config_path = config_path
         self.config = self._load_config()
         self.rules = self._initialize_rules()

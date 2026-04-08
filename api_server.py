@@ -34,7 +34,7 @@ REPORT_FOLDER.mkdir(parents=True, exist_ok=True)
 TEMPLATE_FOLDER.mkdir(parents=True, exist_ok=True)
 
 # 使用新的配置文件
-validation_engine = ValidationEngine(config_path='config/validation_rules_new.yaml')
+validation_engine = ValidationEngine(config_path='config/validation_rules.yaml')
 
 
 def allowed_file(filename):
