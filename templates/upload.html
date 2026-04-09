@@ -8,8 +8,8 @@
         :root {
             --bg: #0e1722;
             --bg-deep: #091019;
-            --panel: rgba(10, 20, 31, 0.86);
-            --panel-soft: rgba(19, 33, 49, 0.9);
+            --panel: #132131;
+            --panel-soft: #18293c;
             --line: rgba(120, 150, 178, 0.24);
             --line-strong: rgba(133, 179, 218, 0.45);
             --text: #e8eef5;
@@ -19,7 +19,7 @@
             --success: #2cb67d;
             --warn: #f3a712;
             --danger: #ed6a5a;
-            --shadow: 0 24px 60px rgba(0, 0, 0, 0.34);
+            --shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
             --radius-xl: 26px;
             --radius-lg: 18px;
             --radius-md: 12px;
@@ -35,40 +35,13 @@
             font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
             color: var(--text);
             min-height: 100vh;
-            background:
-                radial-gradient(circle at top left, rgba(31, 144, 255, 0.18), transparent 28%),
-                radial-gradient(circle at top right, rgba(11, 179, 199, 0.14), transparent 24%),
-                linear-gradient(140deg, #0e1722 0%, #0a121b 48%, #121e2b 100%);
+            background: linear-gradient(180deg, #0f1924 0%, #101a25 100%);
             overflow-x: hidden;
         }
 
         body::before,
         body::after {
-            content: "";
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            z-index: 0;
-        }
-
-        body::before {
-            background:
-                linear-gradient(rgba(120, 150, 178, 0.05) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(120, 150, 178, 0.05) 1px, transparent 1px);
-            background-size: 40px 40px;
-            mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent 88%);
-        }
-
-        body::after {
-            background:
-                linear-gradient(120deg, transparent 0 35%, rgba(31, 144, 255, 0.08) 50%, transparent 65%),
-                linear-gradient(300deg, transparent 0 30%, rgba(11, 179, 199, 0.05) 50%, transparent 70%);
-            animation: drift 12s ease-in-out infinite alternate;
-        }
-
-        @keyframes drift {
-            from { transform: translate3d(0, 0, 0) scale(1); }
-            to { transform: translate3d(0, -12px, 0) scale(1.02); }
+            content: none;
         }
 
         .page {
@@ -94,7 +67,6 @@
             border: 1px solid var(--line);
             border-radius: var(--radius-xl);
             box-shadow: var(--shadow);
-            backdrop-filter: blur(16px);
         }
 
         .hero-main {
@@ -104,14 +76,7 @@
         }
 
         .hero-main::after {
-            content: "";
-            position: absolute;
-            right: -90px;
-            top: -80px;
-            width: 280px;
-            height: 280px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(31, 144, 255, 0.22), transparent 68%);
+            content: none;
         }
 
         .eyebrow {
@@ -261,23 +226,17 @@
             font-size: 15px;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.22s ease, box-shadow 0.22s ease, background 0.22s ease;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
+            transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
         }
 
         .btn-primary {
             color: white;
             background: linear-gradient(135deg, #0f82f2, #0066d6);
-            box-shadow: 0 14px 26px rgba(15, 130, 242, 0.24);
         }
 
         .btn-secondary {
             color: #dffaff;
             background: linear-gradient(135deg, #138d9c, #0b677a);
-            box-shadow: 0 14px 26px rgba(11, 179, 199, 0.2);
         }
 
         .btn-validate {
@@ -286,7 +245,6 @@
             min-height: 56px;
             color: white;
             background: linear-gradient(135deg, #2cb67d, #17995e);
-            box-shadow: 0 14px 26px rgba(44, 182, 125, 0.22);
         }
 
         .btn-validate:disabled {
@@ -301,9 +259,7 @@
             padding: 20px;
             border-radius: 22px;
             border: 1px solid var(--line);
-            background:
-                linear-gradient(180deg, rgba(15, 25, 38, 0.94), rgba(12, 19, 29, 0.98)),
-                linear-gradient(135deg, rgba(31, 144, 255, 0.05), rgba(11, 179, 199, 0.04));
+            background: #101b27;
         }
 
         .upload-area {
@@ -313,10 +269,9 @@
             padding: 44px 26px;
             text-align: center;
             cursor: pointer;
-            background:
-                linear-gradient(180deg, rgba(17, 33, 51, 0.9), rgba(11, 22, 34, 0.88));
+            background: #132131;
             overflow: hidden;
-            transition: border-color 0.24s ease, transform 0.24s ease, background 0.24s ease;
+            transition: border-color 0.18s ease, background 0.18s ease;
         }
 
         .upload-area::before {
@@ -331,8 +286,7 @@
         .upload-area:hover,
         .upload-area.dragover {
             border-color: rgba(31, 144, 255, 0.88);
-            transform: translateY(-2px);
-            background: linear-gradient(180deg, rgba(20, 42, 65, 0.92), rgba(11, 24, 38, 0.94));
+            background: #16273a;
         }
 
         .upload-icon {
@@ -345,7 +299,6 @@
             font-size: 38px;
             background: linear-gradient(145deg, rgba(31, 144, 255, 0.24), rgba(11, 179, 199, 0.12));
             border: 1px solid rgba(125, 187, 239, 0.26);
-            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
         }
 
         .upload-title {
@@ -489,7 +442,7 @@
             margin: 0 auto 14px;
             border: 3px solid rgba(255,255,255,0.1);
             border-top-color: var(--accent);
-            animation: spin 1s linear infinite;
+            animation: spin 1.2s linear infinite;
         }
 
         @keyframes spin {
@@ -650,6 +603,25 @@
 
             .upload-area {
                 padding: 30px 18px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation: none !important;
+                transition: none !important;
+                scroll-behavior: auto !important;
+            }
+        }
+
+        @supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+            .hero-main,
+            .hero-side,
+            .panel,
+            .result-panel {
+                background: #132131;
             }
         }
     </style>
