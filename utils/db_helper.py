@@ -6,7 +6,7 @@ from sqlalchemy.pool import QueuePool
 import yaml
 from pathlib import Path
 from utils.logger import get_default_logger
-from dotenv import load_dotenv
+from utils.env_loader import load_project_env
 
 logger = get_default_logger()
 
@@ -34,7 +34,8 @@ class DatabaseHelper:
     
     def __init__(self, config_path: str = "config/database.yaml"):
         # 确保环境变量已加载
-        load_dotenv()
+        dotenv_path = load_project_env()
+        logger.info(f"已加载环境变量文件: {dotenv_path}")
         
         self.config_path = config_path
         self.engines = {}
@@ -52,6 +53,20 @@ class DatabaseHelper:
             for key, value in os.environ.items():
                 content = content.replace(f"${{{key}}}", value)
             self.config = yaml.safe_load(content)
+
+        unresolved = []
+        for db_name, db_config in self.config.items():
+            if not isinstance(db_config, dict):
+                continue
+            for key, value in db_config.items():
+                if isinstance(value, str) and "${" in value:
+                    unresolved.append(f"{db_name}.{key}={value}")
+
+        if unresolved:
+            raise ValueError(
+                "数据库配置中的环境变量未正确替换，请检查 .env 或服务启动环境: "
+                + "; ".join(unresolved)
+            )
     
     def _init_oracle_thick_mode(self):
         """初始化Oracle thick模式（用于Oracle 11g及更早版本）"""

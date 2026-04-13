@@ -9,12 +9,12 @@ import sys
 import argparse
 from pathlib import Path
 from datetime import datetime
-from dotenv import load_dotenv
 
 from validator.validation_engine import ValidationEngine
 from report.html_generator import HTMLReportGenerator
 from report.excel_generator import ExcelReportGenerator
 from utils.logger import get_default_logger
+from utils.env_loader import load_project_env
 
 logger = get_default_logger()
 
@@ -53,11 +53,12 @@ def main():
     
     args = parser.parse_args()
     
-    load_dotenv()
+    dotenv_path = load_project_env()
     
     logger.info("="*60)
     logger.info("BOM自动化校验程序启动")
     logger.info(f"启动时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(f"环境变量文件: {dotenv_path}")
     logger.info("="*60)
     
     try:

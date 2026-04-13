@@ -351,6 +351,16 @@ validation_rules:
     error_message: "同一父编码下存在重复的子编码，不允许重复"
   
   # ==================== 空格检查 ====================
+
+  - id: VR079
+    name: parent_code_no_space
+    description: 父编码不能包含空格
+    type: no_space_check
+    enabled: true
+    severity: error
+    field: parent_code
+    allow_empty: false
+    error_message: "父编码不能包含空格"
   
   - id: VR080
     name: child_code_no_space
@@ -505,6 +515,7 @@ rule_groups:
     - VR013  # bomviewaltsuid格式（必须为0）
     - VR031  # 单别白名单（BOM清单|BM11等）
     - VR032  # 工单类别白名单（5101/5102/5103）
+    - VR079  # 父编码不能有空格
     - VR080  # 子编码不能有空格
     - VR081  # 用量不能有空格
     - VR082  # 位置号不能有空格

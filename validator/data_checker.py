@@ -45,7 +45,7 @@ class PLMDataChecker:
                     stat as status,
                     '' as supplier_code,
                     '' as version
-                FROM CPCITEM
+                FROM cpcitem
                 WHERE stat IS NOT NULL
             """)
             
@@ -97,7 +97,7 @@ class PLMDataChecker:
                     '' as unit_type,
                     1 as conversion_factor,
                     itemunit as base_unit
-                FROM CPCITEM
+                FROM cpcitem
                 WHERE itemunit IS NOT NULL AND itemunit != ''
             """)
             

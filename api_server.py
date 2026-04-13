@@ -392,9 +392,9 @@ def internal_error(error):
 
 if __name__ == '__main__':
     import os
-    from dotenv import load_dotenv
+    from utils.env_loader import load_project_env
     
-    load_dotenv()
+    dotenv_path = load_project_env()
     
     host = os.getenv('API_HOST', '0.0.0.0')
     port = int(os.getenv('API_PORT', 5000))
@@ -402,6 +402,7 @@ if __name__ == '__main__':
     
     logger.info(f"启动BOM校验API服务: http://{host}:{port}")
     logger.info(f"Excel读取模式: {get_excel_reader_mode()}")
+    logger.info(f"环境变量文件: {dotenv_path}")
     logger.info("API文档:")
     logger.info("  POST /api/validate - 校验BOM文件")
     logger.info("  GET  /api/report/<filename> - 下载报告")
