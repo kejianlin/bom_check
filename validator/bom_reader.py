@@ -3,6 +3,9 @@ from pathlib import Path
 from typing import List, Dict, Any
 from models.bom_models import BOMItem
 from utils.logger import get_default_logger
+from validator.excel_runtime import is_windows_com_mode
+from validator.file_guard import validate_excel_container
+from validator.windows_excel_reader import WindowsExcelReader
 
 logger = get_default_logger()
 
@@ -42,6 +45,7 @@ class BOMReader:
             'work_order_category',
             'unit'
         ]
+        self.windows_reader = WindowsExcelReader()
     
     def read_excel(self, file_path: str, sheet_name: str = None) -> List[BOMItem]:
         """读取Excel文件"""
@@ -53,6 +57,12 @@ class BOMReader:
         
         if file.suffix.lower() not in ['.xlsx', '.xls']:
             raise ValueError(f"不支持的文件格式: {file.suffix}")
+
+        use_windows_com = is_windows_com_mode()
+        if use_windows_com:
+            logger.info("当前启用 Windows Excel COM 读取模式")
+        else:
+            validate_excel_container(file_path)
         
         try:
             # 如果没有指定sheet，尝试自动选择合适的sheet
@@ -62,9 +72,9 @@ class BOMReader:
                     logger.info(f"自动选择sheet: {sheet_name}")
             
             if sheet_name:
-                df = pd.read_excel(file_path, sheet_name=sheet_name, engine='openpyxl')
+                df = self._read_sheet(file_path, sheet_name=sheet_name)
             else:
-                df = pd.read_excel(file_path, engine='openpyxl')
+                df = self._read_sheet(file_path)
             
             logger.info(f"成功读取 {len(df)} 行数据")
             logger.info(f"原始列名: {list(df.columns)}")
@@ -118,21 +128,25 @@ class BOMReader:
     def _find_best_sheet(self, file_path: str) -> str:
         """自动查找最合适的BOM数据sheet"""
         try:
-            excel_file = pd.ExcelFile(file_path)
+            if is_windows_com_mode():
+                sheet_names = self.windows_reader.list_sheet_names(file_path)
+            else:
+                excel_file = pd.ExcelFile(file_path, engine=self._get_excel_engine(file_path))
+                sheet_names = excel_file.sheet_names
             
             # 如果只有一个sheet，直接返回
-            if len(excel_file.sheet_names) == 1:
+            if len(sheet_names) == 1:
                 return None  # 使用默认
             
-            logger.info(f"Excel包含多个sheet: {excel_file.sheet_names}")
+            logger.info(f"Excel包含多个sheet: {sheet_names}")
             
             # 评分系统：找到最可能包含BOM数据的sheet
             best_sheet = None
             best_score = 0
             
-            for sheet_name in excel_file.sheet_names:
+            for sheet_name in sheet_names:
                 try:
-                    df = pd.read_excel(file_path, sheet_name=sheet_name, engine='openpyxl')
+                    df = self._read_sheet(file_path, sheet_name=sheet_name)
                     score = 0
                     
                     # 跳过空sheet
@@ -180,6 +194,21 @@ class BOMReader:
         except Exception as e:
             logger.warning(f"自动选择sheet失败: {str(e)}")
             return None
+
+    def _get_excel_engine(self, file_path: str) -> str:
+        suffix = Path(file_path).suffix.lower()
+        if suffix == '.xls':
+            return 'xlrd'
+        return 'openpyxl'
+
+    def _read_sheet(self, file_path: str, sheet_name: str = None) -> pd.DataFrame:
+        if is_windows_com_mode():
+            return self.windows_reader.read_dataframe(file_path, sheet_name=sheet_name)
+
+        engine = self._get_excel_engine(file_path)
+        if sheet_name:
+            return pd.read_excel(file_path, sheet_name=sheet_name, engine=engine)
+        return pd.read_excel(file_path, engine=engine)
     
     def _normalize_columns(self, df: pd.DataFrame) -> pd.DataFrame:
         """标准化列名"""

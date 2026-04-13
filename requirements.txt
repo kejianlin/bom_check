@@ -24,3 +24,4 @@ schedule>=1.2
 waitress>=3.0
 setuptools>=70
 wheel>=0.45
+pywin32>=306; platform_system == "Windows"

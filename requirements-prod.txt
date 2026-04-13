@@ -16,3 +16,4 @@ colorama==0.4.6
 click==8.1.8
 schedule==1.2.2
 waitress==3.0.2
+pywin32==308; platform_system == "Windows"

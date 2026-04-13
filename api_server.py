@@ -18,6 +18,8 @@ from report.excel_generator import ExcelReportGenerator
 from report.excel_markup_generator import ExcelMarkupGenerator, ExcelErrorReportGenerator
 from scripts.generate_bom_template import create_bom_template
 from utils.logger import get_default_logger
+from validator.excel_runtime import get_excel_reader_mode, supports_markup_report
+from validator.file_guard import ExcelFileGuardError
 
 app = Flask(__name__, template_folder='templates')
 CORS(app)
@@ -60,7 +62,8 @@ def health_check():
     return jsonify({
         'status': 'healthy',
         'timestamp': datetime.now().isoformat(),
-        'service': 'BOM Validation API'
+        'service': 'BOM Validation API',
+        'excel_reader_mode': get_excel_reader_mode()
     })
 
 
@@ -199,6 +202,10 @@ def validate_bom():
         sheet_name = request.form.get('sheet_name')
         report_format = request.form.get('format', 'both').lower().split(',')
         
+        logger.info(f"Excel读取模式: {get_excel_reader_mode()}")
+        if not supports_markup_report():
+            logger.info("当前模式下将跳过原文件标注报告，回退为汇总报告")
+
         logger.info(f"开始校验文件: {upload_path}")
         result = validation_engine.validate_bom_file(str(upload_path), sheet_name)
         logger.info(f"校验完成: 总行数={result.total_rows}, 错误数={result.error_count}")
@@ -219,24 +226,24 @@ def validate_bom():
             report_paths['excel_summary'] = f"/api/report/{report_id}.xlsx"
         
         # 生成标注后的原文件（带错误标记）
-        try:
-            markup_path = REPORT_FOLDER / f"{report_id}_marked.xlsx"
-            markup_generator = ExcelMarkupGenerator()
-            # 直接在复制版本上标注：原文件自动拷贝到marked输出路径
-            markup_generator.generate(result, str(upload_path), str(markup_path))
-            report_paths['marked'] = f"/api/report/{report_id}_marked.xlsx"
-            logger.info(f"已生成标注文件: {markup_path}")
+        if supports_markup_report():
+            try:
+                markup_path = REPORT_FOLDER / f"{report_id}_marked.xlsx"
+                markup_generator = ExcelMarkupGenerator()
+                # 直接在复制版本上标注：原文件自动拷贝到marked输出路径
+                markup_generator.generate(result, str(upload_path), str(markup_path))
+                report_paths['marked'] = f"/api/report/{report_id}_marked.xlsx"
+                logger.info(f"已生成标注文件: {markup_path}")
 
-            # 默认指向标注版（代替传统Excel汇总）
-            report_paths['excel'] = report_paths['marked']
-        except Exception as e:
-            logger.error(f"生成标注文件失败: {str(e)}")
-            # 如果标注失败而用户请求excel，则回退到汇总报告（如已产生）
-            if 'excel_summary' in report_paths:
-                report_paths['excel'] = report_paths['excel_summary']
-
-        except Exception as e:
-            logger.error(f"生成标注文件失败: {str(e)}")
+                # 默认指向标注版（代替传统Excel汇总）
+                report_paths['excel'] = report_paths['marked']
+            except Exception as e:
+                logger.error(f"生成标注文件失败: {str(e)}")
+                # 如果标注失败而用户请求excel，则回退到汇总报告（如已产生）
+                if 'excel_summary' in report_paths:
+                    report_paths['excel'] = report_paths['excel_summary']
+        elif 'excel_summary' in report_paths:
+            report_paths['excel'] = report_paths['excel_summary']
         
         # 生成详细错误报告
         try:
@@ -267,6 +274,10 @@ def validate_bom():
         
         return jsonify(response), 200
         
+    except (ValueError, ExcelFileGuardError) as e:
+        logger.warning(f"校验请求被拒绝: {str(e)}")
+        return jsonify({'error': str(e)}), 400
+
     except Exception as e:
         logger.error(f"校验处理失败: {str(e)}", exc_info=True)
         import traceback
@@ -390,6 +401,7 @@ if __name__ == '__main__':
     debug = os.getenv('API_DEBUG', 'false').lower() == 'true'
     
     logger.info(f"启动BOM校验API服务: http://{host}:{port}")
+    logger.info(f"Excel读取模式: {get_excel_reader_mode()}")
     logger.info("API文档:")
     logger.info("  POST /api/validate - 校验BOM文件")
     logger.info("  GET  /api/report/<filename> - 下载报告")
