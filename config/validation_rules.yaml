@@ -403,6 +403,46 @@ validation_rules:
     allowed_separator: ","
     forbidden_separators: ["，", "、", "；", ";"]
     error_message: "位置号只能使用英文逗号分隔"
+
+  - id: VR084
+    name: parent_code_no_line_break
+    description: 父编码不能包含换行符
+    type: no_line_break_check
+    enabled: true
+    severity: error
+    field: parent_code
+    allow_empty: false
+    error_message: "父编码不能包含换行符"
+
+  - id: VR085
+    name: child_code_no_line_break
+    description: 子编码不能包含换行符
+    type: no_line_break_check
+    enabled: true
+    severity: error
+    field: child_code
+    allow_empty: false
+    error_message: "子编码不能包含换行符"
+
+  - id: VR086
+    name: quantity_no_line_break
+    description: 用量不能包含换行符
+    type: no_line_break_check
+    enabled: true
+    severity: error
+    field: quantity
+    allow_empty: false
+    error_message: "用量不能包含换行符"
+
+  - id: VR087
+    name: position_number_no_line_break
+    description: 位置号不能包含换行符
+    type: no_line_break_check
+    enabled: true
+    severity: error
+    field: position_number
+    allow_empty: true
+    error_message: "位置号不能包含换行符"
   
   # ==================== 特殊业务规则校验 ====================
   
@@ -520,6 +560,10 @@ rule_groups:
     - VR081  # 用量不能有空格
     - VR082  # 位置号不能有空格
     - VR083  # 位置号只能使用英文逗号分隔
+    - VR084  # 父编码不能有换行符
+    - VR085  # 子编码不能有换行符
+    - VR086  # 用量不能有换行符
+    - VR087  # 位置号不能有换行符
     - VR090  # PCA/PBS/PAI开头的父编码，位置号与用量必须匹配
     - VR091  # PBS开头的父编码下不能出现RED/CAD/TRD/ICD/MGD前缀的子编码
     - VR092  # PCA开头的父编码下不能出现RES/CAS/TRS/ICS/MGS前缀的子编码

@@ -744,6 +744,36 @@ class NoSpaceCheckRule(ValidationRule):
         return None
 
 
+class NoLineBreakCheckRule(ValidationRule):
+    """换行检查规则 - 检查字段中是否包含换行符"""
+
+    def validate(self, item: BOMItem, plm_data: dict) -> Optional[ValidationError]:
+        if not self.enabled:
+            return None
+
+        raw_value = item.raw_data.get(self.field) if getattr(item, 'raw_data', None) else None
+        value = raw_value if raw_value is not None else getattr(item, self.field, None)
+        field_label = self._get_field_label()
+
+        if self.config.get('allow_empty', False) and not value:
+            return None
+
+        if value is None or value == '':
+            return None
+
+        str_value = str(value)
+        if '\r' in str_value or '\n' in str_value:
+            normalized_value = str_value.replace('\r\n', '\\r\\n').replace('\r', '\\r').replace('\n', '\\n')
+            return self.create_error(
+                item,
+                f"{field_label}({self.field})不能包含换行符",
+                expected_value="不包含换行符",
+                actual_value=normalized_value
+            )
+
+        return None
+
+
 class SeparatorCheckRule(ValidationRule):
     """分隔符校验规则 - 仅允许指定分隔符"""
 
@@ -983,6 +1013,7 @@ class RuleFactory:
         'status_check': StatusCheckRule,
         'unique_check': UniqueCheckRule,
         'no_space_check': NoSpaceCheckRule,
+        'no_line_break_check': NoLineBreakCheckRule,
         'separator_check': SeparatorCheckRule,
         'position_qty_match': PositionQtyMatchRule,
         'pbs_child_code_restrict': PBSChildCodeRestrictRule,
