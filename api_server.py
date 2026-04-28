@@ -28,6 +28,7 @@ logger = get_default_logger()
 UPLOAD_FOLDER = Path('temp/uploads')
 REPORT_FOLDER = Path('reports')
 TEMPLATE_FOLDER = Path('templates/generated')
+FAVICON_PATH = Path('templates/favicon.ico')
 ALLOWED_EXTENSIONS = {'xlsx', 'xls'}
 
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
@@ -53,6 +54,19 @@ def index():
 def upload_page():
     """上传页面"""
     return render_template('upload.html')
+
+
+@app.route('/favicon.ico')
+def favicon():
+    """站点图标"""
+    if not FAVICON_PATH.exists():
+        return jsonify({'error': 'favicon不存在'}), 404
+
+    return send_file(
+        str(FAVICON_PATH),
+        mimetype='image/x-icon',
+        as_attachment=False
+    )
 
 
 @app.route('/api/health', methods=['GET'])
