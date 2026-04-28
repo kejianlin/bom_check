@@ -13,9 +13,8 @@ from werkzeug.utils import secure_filename
 import uuid
 
 from validator.validation_engine import ValidationEngine
-from report.html_generator import HTMLReportGenerator
-from report.excel_generator import ExcelReportGenerator
-from report.excel_markup_generator import ExcelMarkupGenerator, ExcelErrorReportGenerator
+from report.html_markup_generator import HTMLMarkupGenerator
+from report.excel_markup_generator import ExcelMarkupGenerator
 from scripts.generate_bom_template import create_bom_template
 from utils.logger import get_default_logger
 from validator.excel_runtime import get_excel_reader_mode, supports_markup_report
@@ -168,10 +167,9 @@ def validate_bom():
     - warning_count: 警告数量
     - pass_rate: 通过率
     - report_urls: 包含以下链接：
-        - html: HTML验证报告
-        - excel: Excel汇总报告
+        - html: HTML标注报告（原文件 + 错误标记，在线查看）
         - marked: 标注版Excel文件（原文件 + 错误标记）
-        - error_detail: 详细错误列表Excel文件
+        - excel: Excel标注报告（与marked一致）
     """
     try:
         logger.info("收到校验请求")
@@ -204,7 +202,7 @@ def validate_bom():
         
         logger.info(f"Excel读取模式: {get_excel_reader_mode()}")
         if not supports_markup_report():
-            logger.info("当前模式下将跳过原文件标注报告，回退为汇总报告")
+            logger.info("当前模式下将跳过原文件标注报告，仅返回HTML报告")
 
         logger.info(f"开始校验文件: {upload_path}")
         result = validation_engine.validate_bom_file(str(upload_path), sheet_name)
@@ -212,18 +210,12 @@ def validate_bom():
         
         report_paths = {}
         
-        # 生成HTML/Excel汇总报告
+        # 生成HTML标注报告（在线查看）
         if 'html' in report_format or 'both' in report_format:
             html_path = REPORT_FOLDER / f"{report_id}.html"
-            html_generator = HTMLReportGenerator()
+            html_generator = HTMLMarkupGenerator()
             html_generator.generate(result, str(html_path))
             report_paths['html'] = f"/api/report/{report_id}.html"
-        
-        if 'excel' in report_format or 'both' in report_format:
-            excel_path = REPORT_FOLDER / f"{report_id}.xlsx"
-            excel_generator = ExcelReportGenerator()
-            excel_generator.generate(result, str(excel_path))
-            report_paths['excel_summary'] = f"/api/report/{report_id}.xlsx"
         
         # 生成标注后的原文件（带错误标记）
         if supports_markup_report():
@@ -235,25 +227,10 @@ def validate_bom():
                 report_paths['marked'] = f"/api/report/{report_id}_marked.xlsx"
                 logger.info(f"已生成标注文件: {markup_path}")
 
-                # 默认指向标注版（代替传统Excel汇总）
+                # 默认对外统一为Excel标注版
                 report_paths['excel'] = report_paths['marked']
             except Exception as e:
                 logger.error(f"生成标注文件失败: {str(e)}")
-                # 如果标注失败而用户请求excel，则回退到汇总报告（如已产生）
-                if 'excel_summary' in report_paths:
-                    report_paths['excel'] = report_paths['excel_summary']
-        elif 'excel_summary' in report_paths:
-            report_paths['excel'] = report_paths['excel_summary']
-        
-        # 生成详细错误报告
-        try:
-            error_report_path = REPORT_FOLDER / f"{report_id}_errors.xlsx"
-            error_report_generator = ExcelErrorReportGenerator()
-            error_report_generator.generate(result, str(error_report_path))
-            report_paths['error_detail'] = f"/api/report/{report_id}_errors.xlsx"
-            logger.info(f"已生成错误详情报告: {error_report_path}")
-        except Exception as e:
-            logger.error(f"生成错误详情报告失败: {str(e)}")
         
         response = {
             'report_id': report_id,
@@ -301,8 +278,9 @@ def get_report(filename):
         
         return send_file(
             str(report_path),
-            as_attachment=True,
-            download_name=filename
+            as_attachment=report_path.suffix.lower() != '.html',
+            download_name=filename,
+            mimetype='text/html; charset=utf-8' if report_path.suffix.lower() == '.html' else None
         )
         
     except Exception as e:

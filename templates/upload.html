@@ -697,7 +697,7 @@
                     </div>
 
                     <div class="download-actions">
-                        <a href="#" class="btn btn-primary" id="downloadHtml" download>下载 HTML 报告</a>
+                        <a href="#" class="btn btn-primary" id="downloadHtml" target="_blank" rel="noopener">在线查看 HTML 标注报告</a>
                         <a href="#" class="btn btn-secondary" id="downloadExcel" download>下载 Excel 标注报告</a>
                     </div>
 
@@ -734,7 +734,7 @@
                         <div class="flow-index">03</div>
                         <div>
                             <h3>获取报告</h3>
-                            <p>下载 Excel 标注报告定位到具体单元格异常。</p>
+                            <p>在线查看 HTML 标注报告，或下载 Excel 标注报告，快速定位具体单元格异常。</p>
                         </div>
                     </div>
                 </div>
@@ -798,7 +798,7 @@
 
             const formData = new FormData();
             formData.append('bom_file', selectedFile);
-            formData.append('format', 'both');
+            formData.append('format', 'html');
 
             loading.classList.add('show');
             resultSection.classList.remove('show');
@@ -852,23 +852,6 @@
                 document.getElementById('downloadExcel').href = result.report_urls.excel;
             }
 
-            const errorList = document.getElementById('errorList');
-            const errorItems = document.getElementById('errorItems');
-            errorItems.innerHTML = '';
-
-            if (result.error_count > 0) {
-                Object.entries(result.error_summary).forEach(([rule, count]) => {
-                    const item = document.createElement('div');
-                    item.className = 'error-item';
-                    item.textContent = `${rule}: ${count} 个异常`;
-                    errorItems.appendChild(item);
-                });
-                errorList.style.display = 'block';
-            } else {
-                errorList.style.display = 'none';
-            }
-
-            resultSection.classList.add('show');
         }
     </script>
 </body>
